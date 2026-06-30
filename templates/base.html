@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}Grupo Ronda{% endblock %}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold:        #f5c400;
+            --gold-dim:    #c49a00;
+            --gold-glow:   rgba(245,196,0,0.15);
+            --gold-soft:   rgba(245,196,0,0.08);
+            --bg:          #0a0a0b;
+            --bg-2:        #111114;
+            --bg-3:        #18181c;
+            --bg-4:        #222228;
+            --border:      rgba(255,255,255,0.07);
+            --border-gold: rgba(245,196,0,0.3);
+            --text:        #f0f0f0;
+            --text-2:      #a0a0a8;
+            --text-3:      #606068;
+            --red:         #e84057;
+            --red-soft:    rgba(232,64,87,0.12);
+            --green:       #22c55e;
+            --green-soft:  rgba(34,197,94,0.12);
+            --orange:      #f97316;
+            --orange-soft: rgba(249,115,22,0.12);
+            --blue:        #3b82f6;
+            --blue-soft:   rgba(59,130,246,0.12);
+            --radius:      10px;
+            --radius-lg:   16px;
+            --shadow:      0 4px 24px rgba(0,0,0,0.4);
+            --shadow-gold: 0 0 0 1px var(--border-gold), 0 4px 24px rgba(245,196,0,0.08);
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            /* Subtle grid texture */
+            background-image:
+                linear-gradient(rgba(245,196,0,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(245,196,0,0.02) 1px, transparent 1px);
+            background-size: 48px 48px;
+        }
+
+        /* ── SCROLLBAR ───────────────────────────── */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-2); }
+        ::-webkit-scrollbar-thumb { background: var(--bg-4); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+        /* ── NAVBAR ──────────────────────────────── */
+        nav {
+            background: rgba(10,10,11,0.95);
+            backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border);
+            padding: 0 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 56px;
+            position: sticky;
+            top: 0;
+            z-index: 200;
+        }
+        nav::after {
+            content: '';
+            position: absolute;
+            bottom: 0; left: 0; right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--gold), transparent);
+            opacity: 0.5;
+        }
+
+        .nav-brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            flex-shrink: 0;
+        }
+        .nav-brand img {
+            height: 32px; width: 32px;
+            object-fit: contain;
+            border-radius: 6px;
+            border: 1px solid var(--border-gold);
+        }
+        .nav-brand-text {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 18px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: var(--text);
+            text-transform: uppercase;
+        }
+        .nav-brand-text span { color: var(--gold); }
+
+        .nav-center {
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .nav-sep {
+            width: 1px;
+            height: 18px;
+            background: var(--border);
+            margin: 0 6px;
+        }
+        .nav-center a {
+            color: var(--text-2);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 5px 11px;
+            border-radius: 7px;
+            transition: all 0.15s;
+            white-space: nowrap;
+            letter-spacing: 0.01em;
+        }
+        .nav-center a:hover {
+            background: var(--gold-soft);
+            color: var(--gold);
+        }
+        .nav-center a.active {
+            background: var(--gold-soft);
+            color: var(--gold);
+            border: 1px solid var(--border-gold);
+        }
+
+        .nav-user {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+        .nav-user-info {
+            font-size: 12px;
+            color: var(--text-3);
+            text-align: right;
+            line-height: 1.4;
+        }
+        .nav-user-info strong { color: var(--text-2); font-size: 13px; display: block; }
+        .btn-logout {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text-3);
+            font-size: 12px;
+            font-family: 'DM Sans', sans-serif;
+            font-weight: 500;
+            padding: 5px 12px;
+            border-radius: 7px;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+        .btn-logout:hover {
+            border-color: var(--red);
+            color: var(--red);
+            background: var(--red-soft);
+        }
+
+        /* ── CONTAINER ───────────────────────────── */
+        .container {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem;
+        }
+
+        /* ── PAGE HEADER ─────────────────────────── */
+        .page-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 1.75rem;
+            padding-bottom: 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+        .page-header h1 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 26px;
+            font-weight: 800;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── FLASH ALERTS ────────────────────────── */
+        .alert {
+            padding: 11px 16px;
+            border-radius: var(--radius);
+            margin-bottom: 1rem;
+            font-size: 13px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            border: 1px solid transparent;
+        }
+        .alert-success { background: var(--green-soft);  border-color: rgba(34,197,94,0.25);   color: #4ade80; }
+        .alert-danger  { background: var(--red-soft);    border-color: rgba(232,64,87,0.25);    color: #f87171; }
+        .alert-warning { background: var(--orange-soft); border-color: rgba(249,115,22,0.25);   color: #fb923c; }
+        .alert-info    { background: var(--blue-soft);   border-color: rgba(59,130,246,0.25);   color: #60a5fa; }
+
+        /* ── CARDS ───────────────────────────────── */
+        .card {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            transition: border-color 0.2s;
+        }
+        .card:hover { border-color: rgba(255,255,255,0.1); }
+        .card-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            color: var(--text);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 1.25rem;
+            padding-bottom: 0.75rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .card-title::before {
+            content: '';
+            width: 3px; height: 16px;
+            background: var(--gold);
+            border-radius: 2px;
+            flex-shrink: 0;
+        }
+
+        /* ── STAT CARDS ──────────────────────────── */
+        .stat-card {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            padding: 1.25rem 1.5rem;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.2s;
+        }
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+        }
+        .stat-card.gold::before   { background: var(--gold); }
+        .stat-card.green::before  { background: var(--green); }
+        .stat-card.red::before    { background: var(--red); }
+        .stat-card.orange::before { background: var(--orange); }
+        .stat-card.blue::before   { background: var(--blue); }
+        .stat-card:hover { border-color: rgba(255,255,255,0.12); transform: translateY(-1px); }
+        .stat-value {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 36px;
+            font-weight: 800;
+            line-height: 1;
+            margin-bottom: 4px;
+        }
+        .stat-label {
+            font-size: 11px;
+            font-weight: 600;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+
+        /* ── BUTTONS ─────────────────────────────── */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 8px 18px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            font-family: 'DM Sans', sans-serif;
+            cursor: pointer;
+            border: 1px solid transparent;
+            text-decoration: none;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        .btn:active { transform: scale(0.97); }
+        .btn-primary {
+            background: var(--gold);
+            color: #111;
+            border-color: var(--gold);
+        }
+        .btn-primary:hover { background: #ffd633; box-shadow: 0 4px 16px rgba(245,196,0,0.3); }
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-2);
+            border-color: var(--border);
+        }
+        .btn-ghost:hover { background: var(--bg-3); border-color: rgba(255,255,255,0.15); color: var(--text); }
+        .btn-success {
+            background: transparent;
+            color: var(--green);
+            border-color: rgba(34,197,94,0.4);
+        }
+        .btn-success:hover { background: var(--green-soft); }
+        .btn-danger {
+            background: transparent;
+            color: var(--red);
+            border-color: rgba(232,64,87,0.4);
+        }
+        .btn-danger:hover { background: var(--red-soft); }
+        .btn-dark {
+            background: var(--bg-3);
+            color: var(--text-2);
+            border-color: var(--border);
+        }
+        .btn-dark:hover { background: var(--bg-4); color: var(--text); }
+        .btn-sm { padding: 5px 12px; font-size: 12px; }
+        .btn-lg { padding: 11px 24px; font-size: 14px; }
+
+        /* ── TABLES ──────────────────────────────── */
+        .table-wrap {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+        }
+        table { width: 100%; border-collapse: collapse; font-size: 13px; }
+        thead tr { background: var(--bg-3); }
+        th {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-3);
+            padding: 10px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+        td {
+            padding: 11px 14px;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+            color: var(--text-2);
+        }
+        tbody tr:last-child td { border-bottom: none; }
+        tbody tr { transition: background 0.1s; }
+        tbody tr:hover td { background: var(--bg-3); color: var(--text); }
+
+        /* ── BADGES ──────────────────────────────── */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 9px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+        }
+        .badge-pendente    { background: var(--orange-soft); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+        .badge-em_tratativa{ background: var(--blue-soft);   color: var(--blue);   border: 1px solid rgba(59,130,246,0.3); }
+        .badge-tratado     { background: var(--green-soft);  color: var(--green);  border: 1px solid rgba(34,197,94,0.3); }
+        .badge-success     { background: var(--green-soft);  color: var(--green);  border: 1px solid rgba(34,197,94,0.3); }
+        .badge-danger      { background: var(--red-soft);    color: var(--red);    border: 1px solid rgba(232,64,87,0.3); }
+        .badge-warning     { background: var(--orange-soft); color: var(--orange); border: 1px solid rgba(249,115,22,0.3); }
+        .badge-info        { background: var(--blue-soft);   color: var(--blue);   border: 1px solid rgba(59,130,246,0.3); }
+        .badge-secondary   { background: var(--bg-3);        color: var(--text-3); border: 1px solid var(--border); }
+
+        /* ── FORMS ───────────────────────────────── */
+        .form-group { margin-bottom: 1.1rem; }
+        label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-3);
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+        input[type=text], input[type=password], input[type=email],
+        input[type=number], input[type=date], select, textarea {
+            width: 100%;
+            padding: 9px 13px;
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            transition: all 0.15s;
+            appearance: none;
+        }
+        input::placeholder, textarea::placeholder { color: var(--text-3); }
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--gold-dim);
+            box-shadow: 0 0 0 3px var(--gold-soft);
+            background: var(--bg-2);
+        }
+        select {
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23606068' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 12px center;
+            padding-right: 36px;
+        }
+        select option { background: var(--bg-3); color: var(--text); }
+        textarea { resize: vertical; min-height: 80px; }
+        small { font-size: 11px; color: var(--text-3); display: block; margin-top: 4px; }
+
+        /* ── SECTION DIVIDER ─────────────────────── */
+        .section-label {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.12em;
+            color: var(--text-3);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 1rem;
+        }
+        .section-label::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: var(--border);
+        }
+
+        /* ── LOOP STATUS DOT ─────────────────────── */
+        #nav-loop-dot {
+            display: none;
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--green);
+            box-shadow: 0 0 6px var(--green);
+            animation: pulse-dot 2s infinite;
+        }
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50%       { opacity: 0.4; }
+        }
+
+        /* ── UTILITY ─────────────────────────────── */
+        .text-gold   { color: var(--gold); }
+        .text-red    { color: var(--red); }
+        .text-green  { color: var(--green); }
+        .text-muted  { color: var(--text-3); }
+        .text-center { text-align: center; }
+        .fw-bold     { font-weight: 700; }
+        .gap-1       { gap: 8px; }
+        .d-flex      { display: flex; }
+        .align-center{ align-items: center; }
+
+        /* ── MODAL BACKDROP ──────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.75);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1.5rem;
+        }
+        .modal {
+            background: var(--bg-2);
+            border: 1px solid var(--border);
+            border-top: 2px solid var(--gold);
+            border-radius: var(--radius-lg);
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 24px 64px rgba(0,0,0,0.6);
+        }
+        .modal-header {
+            background: var(--bg-3);
+            padding: 14px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 15px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--text);
+        }
+        .modal-close {
+            background: none; border: none;
+            color: var(--text-3); font-size: 20px;
+            cursor: pointer; line-height: 1;
+            transition: color 0.15s;
+        }
+        .modal-close:hover { color: var(--red); }
+        .modal-body { padding: 20px; }
+    </style>
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if session.monitor_id %}
+<nav>
+    <a class="nav-brand" href="{{ url_for('dashboard.dashboard') }}">
+        <img src="{{ url_for('static', filename='img/logo.jpeg') }}" alt="Grupo Ronda">
+        <span class="nav-brand-text">GRUPO <span>RONDA</span></span>
+    </a>
+
+    <div class="nav-center">
+        <a href="{{ url_for('dashboard.dashboard') }}">Dashboard</a>
+        <a href="{{ url_for('rondas.historico') }}">Histórico</a>
+        <a href="{{ url_for('rondas.monitores') }}">Monitores</a>
+        <a href="{{ url_for('whatsapp.monitor_whatsapp') }}">WhatsApp</a>
+        <div class="nav-sep"></div>
+        <a href="{{ url_for('alarmes.central_alarmes') }}">🚨 Alarmes</a>
+        <a href="/ronda-loop" id="nav-loop-link" style="position:relative; display:inline-flex; align-items:center; gap:6px;">
+            🔄 Loop
+            <span id="nav-loop-dot"></span>
+        </a>
+        <a href="{{ url_for('nvr.nvr_listar') }}">📷 PTZ</a>
+        <a href="{{ url_for('conferencia.painel') }}">🛰️ Conferência</a>
+        <div class="nav-sep"></div>
+        <a href="/email">✉️ E-mail</a>
+    </div>
+
+    <div class="nav-user">
+        <div class="nav-user-info">
+            <strong>{{ session.monitor_nome }}</strong>
+            {{ session.monitor_turno }}
+        </div>
+        <a href="{{ url_for('auth.logout') }}" class="btn-logout">Sair</a>
+    </div>
+</nav>
+{% endif %}
+
+<div class="container">
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+
+    {% block content %}{% endblock %}
+</div>
+
+{% if session.monitor_id %}
+<script>
+// Loop status indicator
+(function() {
+    function checarLoop() {
+        fetch('/api/ronda-loop/status')
+            .then(r => r.json())
+            .then(s => {
+                const dot = document.getElementById('nav-loop-dot');
+                if (dot) dot.style.display = s.ativo ? 'inline-block' : 'none';
+            }).catch(() => {});
+    }
+    checarLoop();
+    setInterval(checarLoop, 10000);
+
+    // Highlight active nav link
+    const links = document.querySelectorAll('.nav-center a');
+    links.forEach(a => {
+        if (a.href === window.location.href ||
+            (a.getAttribute('href') !== '/' && window.location.pathname.startsWith(a.getAttribute('href')))) {
+            a.classList.add('active');
+        }
+    });
+})();
+
+// Email modal for historico page
+(function() {
+    if (!window.location.pathname.includes('/historico')) return;
+    const modal = document.createElement('div');
+    modal.id = 'email-modal';
+    modal.style.cssText = 'display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);backdrop-filter:blur(4px);z-index:8000;align-items:center;justify-content:center;padding:1.5rem;';
+    modal.innerHTML = `
+      <div style="background:var(--bg-2);border:1px solid var(--border);border-top:2px solid var(--gold);border-radius:16px;width:100%;max-width:480px;box-shadow:0 24px 64px rgba(0,0,0,.6);overflow:hidden;">
+        <div style="background:var(--bg-3);padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid var(--border);">
+          <span style="font-family:'Barlow Condensed',sans-serif;font-size:15px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--text);">✉️ Enviar Relatório</span>
+          <button onclick="document.getElementById('email-modal').style.display='none'" style="background:none;border:none;color:var(--text-3);font-size:20px;cursor:pointer;line-height:1;">✕</button>
+        </div>
+        <div style="padding:20px;display:flex;flex-direction:column;gap:14px;">
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">ID da Ronda</label>
+            <input id="em-ronda-id" type="number" min="1" style="width:100%;padding:9px 13px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);">
+          </div>
+          <div>
+            <label style="display:block;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px;">Destinatários <span style="text-transform:none;font-weight:400;">(separados por vírgula)</span></label>
+            <input id="em-destinatarios" type="text" placeholder="supervisor@empresa.com, gerente@empresa.com" style="width:100%;padding:9px 13px;background:var(--bg-3);border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:'DM Sans',sans-serif;color:var(--text);">
+          </div>
+          <div id="em-resultado" style="display:none;font-size:13px;padding:10px 14px;border-radius:8px;"></div>
+          <div style="display:flex;gap:10px;">
+            <button onclick="emailPreview()" style="flex:1;padding:9px;background:transparent;color:var(--text-2);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:600;transition:all .15s;" onmouseover="this.style.background='var(--bg-3)'" onmouseout="this.style.background='transparent'">👁 Preview</button>
+            <button onclick="emailEnviar()" style="flex:1;padding:9px;background:var(--gold);color:#111;border:none;border-radius:8px;cursor:pointer;font-size:13px;font-family:'DM Sans',sans-serif;font-weight:700;transition:all .15s;" onmouseover="this.style.background='#ffd633'" onmouseout="this.style.background='var(--gold)'">📧 Enviar</button>
+          </div>
+        </div>
+      </div>`;
+    document.body.appendChild(modal);
+
+    window.emailPreview = function() {
+        const id = document.getElementById('em-ronda-id').value;
+        if (!id) { rondaToast('Informe o ID da ronda.', 'error'); return; }
+        window.open('/api/email/preview/' + id, '_blank');
+    };
+    window.emailEnviar = async function() {
+        const id = document.getElementById('em-ronda-id').value;
+        const dest = document.getElementById('em-destinatarios').value;
+        if (!id || !dest) { rondaToast('Preencha todos os campos.', 'error'); return; }
+        const destinatarios = dest.split(',').map(s => s.trim()).filter(Boolean);
+        const el = document.getElementById('em-resultado');
+        el.style.display = 'block';
+        el.style.cssText += 'background:var(--bg-3);color:var(--text-2);border:1px solid var(--border);';
+        el.textContent = 'Enviando...';
+        try {
+            const r = await fetch('/api/email/enviar-relatorio', {
+                method: 'POST', headers: {'Content-Type':'application/json'},
+                body: JSON.stringify({ronda_id: parseInt(id), destinatarios}),
+            }).then(r => r.json());
+            if (r.ok) {
+                el.style.cssText = el.style.cssText.replace('color:var(--text-2)', 'color:var(--green)');
+                el.textContent = '✅ Relatório enviado com sucesso!';
+            } else {
+                el.style.cssText = el.style.cssText.replace('color:var(--text-2)', 'color:var(--red)');
+                el.textContent = '❌ ' + (r.erro || 'Erro desconhecido');
+            }
+        } catch(e) { el.textContent = '❌ Erro: ' + e.message; }
+    };
+
+    const btn = document.createElement('button');
+    btn.textContent = '✉️ Enviar por E-mail';
+    btn.style.cssText = 'position:fixed;bottom:28px;right:28px;background:var(--gold);color:#111;border:none;padding:11px 20px;border-radius:8px;font-weight:700;font-size:13px;font-family:"DM Sans",sans-serif;cursor:pointer;box-shadow:0 4px 20px rgba(245,196,0,0.3);z-index:500;transition:all .15s;';
+    btn.onmouseover = () => { btn.style.background = '#ffd633'; btn.style.transform = 'translateY(-2px)'; };
+    btn.onmouseout  = () => { btn.style.background = 'var(--gold)'; btn.style.transform = ''; };
+    btn.onclick = () => {
+        document.getElementById('em-resultado').style.display = 'none';
+        document.getElementById('email-modal').style.display = 'flex';
+    };
+    document.body.appendChild(btn);
+})();
+
+function rondaToast(msg, tipo) {
+    let ct = document.getElementById('ronda-toast-ct');
+    if (!ct) {
+        ct = document.createElement('div');
+        ct.id = 'ronda-toast-ct';
+        ct.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);display:flex;flex-direction:column;gap:8px;z-index:9000;';
+        document.body.appendChild(ct);
+    }
+    const el = document.createElement('div');
+    const bg  = tipo === 'ok' ? 'rgba(34,197,94,0.15)'    : 'rgba(232,64,87,0.15)';
+    const bdr = tipo === 'ok' ? 'rgba(34,197,94,0.4)'     : 'rgba(232,64,87,0.4)';
+    const col = tipo === 'ok' ? 'var(--green)'             : 'var(--red)';
+    el.style.cssText = `font-size:13px;padding:11px 18px;border-radius:8px;background:${bg};border:1px solid ${bdr};color:${col};font-family:'DM Sans',sans-serif;font-weight:500;white-space:nowrap;box-shadow:0 8px 32px rgba(0,0,0,.4);`;
+    el.textContent = msg;
+    ct.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+}
+</script>
+{% endif %}
+
+{% block extra_js %}{% endblock %}
+
+</body>
+</html>

@@ -1,0 +1,234 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Editar' if nvr else 'Novo' }} NVR — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>{{ 'Editar NVR' if nvr else 'Novo NVR' }}</h1>
+    <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn btn-primary btn-sm">← Voltar</a>
+</div>
+
+<style>
+    .form-section {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+    }
+    .form-section-title {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .12em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .preset-row {
+        display: grid;
+        grid-template-columns: 70px 1fr 34px;
+        gap: 8px;
+        align-items: center;
+        margin-bottom: 8px;
+    }
+    .preset-row input {
+        background: rgba(255,255,255,0.04);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        color: var(--text-main);
+        padding: 8px 10px;
+        font-size: 13px;
+        font-family: 'DM Sans', sans-serif;
+        outline: none;
+    }
+    .preset-row input:focus {
+        border-color: rgba(245,196,0,.5);
+    }
+    .preset-del {
+        width: 34px;
+        height: 34px;
+        border-radius: 6px;
+        border: 1px solid var(--border);
+        background: rgba(239,68,68,.08);
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all .15s;
+    }
+    .preset-del:hover {
+        border-color: rgba(239,68,68,.4);
+        color: #f87171;
+    }
+    .add-preset {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--gold);
+        background: var(--gold-glow);
+        border: 1px solid var(--gold-border);
+        padding: 5px 12px;
+        border-radius: 5px;
+        cursor: pointer;
+        transition: background .15s;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+    }
+    .add-preset:hover {
+        background: rgba(245,196,0,.2);
+    }
+</style>
+
+<form method="POST" id="form-nvr">
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+
+    <!-- COLUNA ESQUERDA: identificação e canais -->
+    <div>
+        <div class="form-section">
+            <div class="form-section-title">Identificação</div>
+
+            <div class="form-group">
+                <label>ID do NVR <span style="color:var(--text-muted); font-size:11px;">(único, sem espaços)</span></label>
+                <input type="text" name="nvr_id" value="{{ nvr.nvr_id if nvr else '' }}"
+                       placeholder="ex: altair_sp_dome_01" required
+                       {% if nvr %}readonly style="opacity:.6; cursor:not-allowed;"{% endif %}>
+            </div>
+
+            <div class="form-group">
+                <label>Nome / Identificação</label>
+                <input type="text" name="nome" value="{{ nvr.nome if nvr else '' }}"
+                       placeholder="UFV Altair - Dome 01" required>
+            </div>
+
+            <div class="form-group">
+                <label>Site / Usina</label>
+                <input type="text" name="site" value="{{ nvr.site if nvr else '' }}"
+                       placeholder="Altair - SP">
+            </div>
+
+            <div class="form-group">
+                <label>Endereço IP</label>
+                <input type="text" name="ip" value="{{ nvr.ip if nvr else '' }}"
+                       placeholder="10.38.10.202" required>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                    <label>Usuário</label>
+                    <input type="text" name="usuario" value="{{ nvr.usuario if nvr else 'admin' }}" required>
+                </div>
+                <div class="form-group">
+                    <label>Senha</label>
+                    <input type="password" name="senha" value="{{ nvr.senha if nvr else '' }}"
+                           placeholder="{% if nvr %}deixe em branco para manter{% else %}senha{% endif %}">
+                    {% if nvr %}
+                    <small>Deixe em branco para manter a senha atual.</small>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
+            <div class="form-section-title">Configuração de Canais</div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                    <label>Canal PTZ</label>
+                    <input type="number" name="ptz_channel" value="{{ nvr.ptz_channel if nvr else 1 }}" min="1" max="64" required>
+                </div>
+                <div class="form-group">
+                    <label>Canal Snapshot</label>
+                    <input type="text" name="snapshot_channel" value="{{ nvr.snapshot_channel if nvr else '501' }}" required>
+                </div>
+            </div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-top:0.5rem;">
+                <div class="form-group">
+                    <label>Espera após PTZ (s)</label>
+                    <input type="number" name="tempo_espera" value="{{ nvr.tempo_espera if nvr else 5 }}" min="1" max="30" required>
+                </div>
+                <div class="form-group">
+                    <label>Timeout (s)</label>
+                    <input type="number" name="timeout" value="{{ nvr.timeout if nvr else 10 }}" min="3" max="60" required>
+                </div>
+            </div>
+
+            <div class="form-group" style="margin-top:1rem;">
+                <label style="display:flex; align-items:center; gap:10px; cursor:pointer; text-transform:none; font-size:13px; font-weight:500;">
+                    <input type="checkbox" name="ativo" value="1" {% if not nvr or nvr.ativo %}checked{% endif %}
+                           style="width:16px; height:16px; accent-color:var(--gold);">
+                    <span>NVR ativo (incluir no monitoramento)</span>
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <!-- COLUNA DIREITA: presets -->
+    <div>
+        <div class="form-section" style="height: 100%;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1.25rem; padding-bottom:.75rem; border-bottom:1px solid var(--border);">
+                <div class="form-section-title" style="margin-bottom:0; padding-bottom:0; border-bottom:none;">Presets PTZ</div>
+                <button type="button" onclick="adicionarPreset()" class="add-preset">+ Adicionar</button>
+            </div>
+
+            <div style="font-size:12px; color:var(--text-muted); margin-bottom:1rem;">
+                Cada preset é uma posição salva na câmera. O número deve corresponder ao preset configurado no PTZ.
+            </div>
+
+            <div id="lista-presets" style="display:flex; flex-direction:column; gap:8px;">
+                {% if presets %}
+                    {% for p in presets %}
+                    <div class="preset-row">
+                        <input type="number" name="preset_num[]" value="{{ p.numero }}" min="1" max="256" placeholder="Nº" style="text-align:center;">
+                        <input type="text" name="preset_nome[]" value="{{ p.nome }}" placeholder="Ex: Portao_Norte">
+                        <button type="button" onclick="this.closest('.preset-row').remove()" class="preset-del">×</button>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="preset-row">
+                        <input type="number" name="preset_num[]" min="1" max="256" placeholder="Nº" style="text-align:center;">
+                        <input type="text" name="preset_nome[]" placeholder="Ex: Portao_Norte">
+                        <button type="button" onclick="this.closest('.preset-row').remove()" class="preset-del">×</button>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOTÕES -->
+<div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem;">
+    {% if nvr %}
+    <form method="POST" action="{{ url_for('conferencia.nvrs_excluir', nvr_id=nvr.nvr_id) }}"
+          onsubmit="return confirm('Excluir {{ nvr.nome }}? Esta ação não pode ser desfeita.')">
+        <button type="submit" class="btn btn-danger btn-sm">Excluir NVR</button>
+    </form>
+    {% else %}
+    <div></div>
+    {% endif %}
+    <div style="display:flex; gap:10px;">
+        <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn btn-secondary">Cancelar</a>
+        <button type="submit" class="btn btn-success">Salvar</button>
+    </div>
+</div>
+</form>
+
+<script>
+function adicionarPreset() {
+    const container = document.getElementById('lista-presets');
+    const row = document.createElement('div');
+    row.className = 'preset-row';
+    row.innerHTML = `
+        <input type="number" name="preset_num[]" min="1" max="256" placeholder="Nº" style="text-align:center;">
+        <input type="text" name="preset_nome[]" placeholder="Ex: Portao_Norte">
+        <button type="button" onclick="this.closest('.preset-row').remove()" class="preset-del">×</button>
+    `;
+    container.appendChild(row);
+    row.querySelector('input[type=number]').focus();
+}
+</script>
+{% endblock %}

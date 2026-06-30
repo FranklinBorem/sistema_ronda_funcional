@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Monitores — Ronda Automatizada{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Monitores</h1>
+    <a href="{{ url_for('rondas.novo_monitor') }}" class="btn btn-primary">+ Novo Monitor</a>
+</div>
+
+<div class="card">
+    <div class="card-title">Monitores Cadastrados</div>
+
+    {% if monitores %}
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Nome</th>
+                <th>Usuário</th>
+                <th>Turno</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for m in monitores %}
+            <tr>
+                <td style="color: #666; font-size: 12px;">{{ m.id }}</td>
+                <td style="font-weight: 600;">{{ m.nome }}</td>
+                <td style="font-family: monospace; font-size: 13px;">{{ m.usuario }}</td>
+                <td><span class="badge badge-info">{{ m.turno }}</span></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #888; font-size: 14px; text-align: center; padding: 2rem 0;">
+        Nenhum monitor cadastrado.
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

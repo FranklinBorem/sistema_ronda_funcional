@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Novo Monitor — Ronda Automatizada{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Novo Monitor</h1>
+    <a href="{{ url_for('rondas.monitores') }}" class="btn btn-primary btn-sm">← Voltar</a>
+</div>
+
+<div class="card" style="max-width: 480px;">
+    <div class="card-title">Cadastrar Monitor</div>
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="nome">Nome completo</label>
+            <input type="text" id="nome" name="nome" placeholder="Ex: João Silva" required>
+        </div>
+        <div class="form-group">
+            <label for="usuario">Usuário (login)</label>
+            <input type="text" id="usuario" name="usuario" placeholder="Ex: joao.silva" required>
+        </div>
+        <div class="form-group">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" name="senha" placeholder="Mínimo 6 caracteres" required>
+        </div>
+        <div class="form-group">
+            <label for="turno">Turno</label>
+            <select id="turno" name="turno" required>
+                <option value="">Selecione o turno</option>
+                <option value="Turno A (06h–14h)">Turno A (06h–14h)</option>
+                <option value="Turno B (14h–22h)">Turno B (14h–22h)</option>
+                <option value="Turno C (22h–06h)">Turno C (22h–06h)</option>
+                <option value="Administrativo">Administrativo</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-success">Cadastrar Monitor</button>
+    </form>
+</div>
+{% endblock %}

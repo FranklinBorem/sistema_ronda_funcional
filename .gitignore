@@ -1,0 +1,31 @@
+# ambientes
+venv/
+venv312/
+.venv/
+
+# python
+__pycache__/
+*.pyc
+
+# ambiente
+.env
+
+# modelos pesados
+*.pt
+
+# logs e execuções
+relatorios/
+
+node_modules/
+
+.wwebjs_auth/
+
+*.db
+*.sqlite
+*.pt
+*.pth
+*.mp4
+*.zip
+*.rar
+*.log
+instance/

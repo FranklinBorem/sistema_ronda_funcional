@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Monitor WhatsApp — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Monitor WhatsApp</h1>
+    <button onclick="location.reload()" class="btn btn-primary">↻ Atualizar</button>
+</div>
+
+<!-- STATUS DO SISTEMA -->
+<div class="card" style="background: #0a0a0a; border-color: #f5c400;">
+    <div style="display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 1rem;">
+        <div style="display: flex; align-items: center; gap: 12px;">
+            <div style="width: 14px; height: 14px; border-radius: 50%;
+                background: {{ '#22c55e' if sistema_online else '#ef4444' }};
+                box-shadow: 0 0 8px {{ '#22c55e' if sistema_online else '#ef4444' }};">
+            </div>
+            <div>
+                <div style="font-size: 15px; font-weight: 700; color: #fff;">
+                    WhatsApp {{ 'ONLINE' if sistema_online else 'DESCONECTADO' }}
+                </div>
+                <div style="font-size: 12px; color: #aaa;">
+                    {% if sistema_atraso is not none %}
+                        Último heartbeat há {{ sistema_atraso }}s
+                    {% else %}
+                        Nenhum heartbeat recebido ainda
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        <div style="font-size: 12px; color: #aaa;">
+            Atualizado em: <span id="hora-atual" style="color: #f5c400;"></span>
+        </div>
+    </div>
+</div>
+
+<!-- CARDS DE RESUMO -->
+<div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;">
+    <div class="card" style="text-align: center; border-top: 3px solid #22c55e; margin-bottom: 0;">
+        <div style="font-size: 36px; font-weight: 700; color: #22c55e;">{{ total_ok }}</div>
+        <div style="font-size: 13px; color: #888; margin-top: 4px;">🟢 OK</div>
+    </div>
+    <div class="card" style="text-align: center; border-top: 3px solid #f59e0b; margin-bottom: 0;">
+        <div style="font-size: 36px; font-weight: 700; color: #f59e0b;">{{ total_alerta }}</div>
+        <div style="font-size: 13px; color: #888; margin-top: 4px;">🟡 Alerta</div>
+    </div>
+    <div class="card" style="text-align: center; border-top: 3px solid #ef4444; margin-bottom: 0;">
+        <div style="font-size: 36px; font-weight: 700; color: #ef4444;">{{ total_critico }}</div>
+        <div style="font-size: 13px; color: #888; margin-top: 4px;">🔴 Crítico</div>
+    </div>
+</div>
+
+<!-- STATUS POR GRUPO -->
+<div class="card">
+    <div class="card-title">Status por Grupo</div>
+    {% if grupos %}
+    <table>
+        <thead>
+            <tr>
+                <th>Grupo</th>
+                <th>Última Mensagem</th>
+                <th>Inativo</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for g in grupos %}
+            <tr>
+                <td style="font-weight: 600;">{{ g.nome }}</td>
+                <td>{{ g.ultima_msg }}</td>
+                <td>{{ g.inativo_min }} min</td>
+                <td>
+                    {% if g.status == 'OK' %}
+                        <span class="badge" style="background: #d4edda; color: #6ee7a0;">🟢 OK</span>
+                    {% elif g.status == 'ALERTA' %}
+                        <span class="badge" style="background: #fff3cd; color: #856404;">🟡 Alerta</span>
+                    {% else %}
+                        <span class="badge" style="background: #f8d7da; color: #f88;">🔴 Crítico</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #888; font-size: 14px; text-align: center; padding: 2rem 0;">
+        Nenhum grupo UFV Segurança encontrado nas últimas 24h.<br>
+        Verifique se o <strong>server.js</strong> está em execução e conectado ao WhatsApp.
+    </p>
+    {% endif %}
+</div>
+
+<!-- HISTÓRICO DE MENSAGENS -->
+<div class="card">
+    <div class="card-title">Histórico de Mensagens (últimas 50)</div>
+    {% if historico %}
+    <table>
+        <thead>
+            <tr>
+                <th>Horário</th>
+                <th>Grupo</th>
+                <th>Autor</th>
+                <th>Mensagem</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for h in historico %}
+            <tr>
+                <td style="font-size: 12px; color: #666; white-space: nowrap;">
+                    {{ h.data[:19].replace('T', ' ') if h.data else '—' }}
+                </td>
+                <td style="font-size: 13px; font-weight: 600;">{{ h.grupo }}</td>
+                <td style="font-size: 13px;">{{ h.autor or '—' }}</td>
+                <td style="font-size: 13px; color: #aaa;">{{ h.conteudo or '—' }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #888; font-size: 14px; text-align: center; padding: 2rem 0;">
+        Nenhuma mensagem registrada ainda.
+    </p>
+    {% endif %}
+</div>
+
+<script>
+    function atualizarHora() {
+        const el = document.getElementById('hora-atual');
+        if (el) el.textContent = new Date().toLocaleString('pt-BR');
+    }
+    atualizarHora();
+    setInterval(atualizarHora, 1000);
+
+    // Auto-refresh a cada 60 segundos
+    setTimeout(() => location.reload(), 60000);
+</script>
+{% endblock %}

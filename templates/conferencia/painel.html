@@ -1,0 +1,600 @@
+{% extends "base.html" %}
+{% block title %}Conferência de Câmeras — Grupo Ronda{% endblock %}
+
+{% block extra_css %}
+<style>
+  /* ── Tokens locais (herdam do base.html) ── */
+  .conf-wrap {
+    /* o base.html já envolve em .container com max-width:1160px e padding */
+  }
+
+  /* ── Cabeçalho ── */
+  .conf-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+  .conf-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--text);
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .conf-title::before {
+    content: '';
+    width: 3px; height: 20px;
+    background: var(--gold);
+    border-radius: 2px;
+    display: inline-block;
+  }
+  .conf-subtitle { font-size: 12px; color: var(--text-3); margin-top: 3px; }
+
+  /* ── Botões ── */
+  .btn-poll {
+    background: var(--gold);
+    color: #111;
+    border: none;
+    border-radius: 8px;
+    padding: 8px 18px;
+    font-weight: 700;
+    font-size: 13px;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    letter-spacing: .04em;
+    transition: all .15s;
+    white-space: nowrap;
+  }
+  .btn-poll:hover { background: #ffd633; box-shadow: 0 4px 16px rgba(245,196,0,.3); }
+  .btn-poll:disabled { opacity: .45; cursor: not-allowed; box-shadow: none; }
+  .btn-poll .spin {
+    width: 13px; height: 13px;
+    border: 2px solid #0006;
+    border-top-color: #000;
+    border-radius: 50%;
+    animation: rg-spin .6s linear infinite;
+    display: none;
+  }
+  .btn-poll.loading .spin { display: inline-block; }
+  @keyframes rg-spin { to { transform: rotate(360deg); } }
+
+  .btn-logs {
+    background: transparent;
+    color: var(--text-2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-family: 'DM Sans', sans-serif;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+  }
+  .btn-logs:hover { background: var(--bg-3); border-color: rgba(255,255,255,.15); color: var(--text); }
+
+  /* ── Summary cards ── */
+  .summary-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: .65rem;
+    margin-bottom: 1.5rem;
+  }
+  .s-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: .9rem 1rem;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .s-card::before { content:''; position:absolute; top:0;left:0;right:0; height:2px; }
+  .s-card.c-gold::before  { background: var(--gold); }
+  .s-card.c-green::before { background: var(--green); }
+  .s-card.c-red::before   { background: var(--red); }
+  .s-card.c-orange::before{ background: var(--orange); }
+  .s-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 32px; font-weight: 800; line-height: 1;
+    color: var(--text);
+  }
+  .s-num.ok     { color: var(--green); }
+  .s-num.warn   { color: var(--orange); }
+  .s-num.err    { color: var(--red); }
+  .s-lbl {
+    font-size: 10px; font-weight: 700; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-3); margin-top: 4px;
+  }
+
+  /* ── Timestamp ── */
+  .ts-line {
+    font-size: 11px; color: var(--text-3); font-family: monospace;
+    margin-bottom: 1rem;
+    display: flex; align-items: center; gap: .5rem;
+  }
+  .ts-line span { color: var(--text-2); }
+
+  /* ── NVR cards ── */
+  .nvr-stack { display: flex; flex-direction: column; gap: 1rem; }
+
+  .nvr-card {
+    background: var(--bg-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    transition: border-color .2s;
+  }
+  .nvr-card.h-ok   { border-left: 3px solid var(--green); }
+  .nvr-card.h-warn { border-left: 3px solid var(--orange); }
+  .nvr-card.h-err  { border-left: 3px solid var(--red); }
+
+  .nvr-head {
+    display: flex; align-items: center;
+    padding: .85rem 1.1rem; gap: .85rem;
+    cursor: pointer; user-select: none;
+    border-bottom: 1px solid transparent;
+    transition: background .12s;
+  }
+  .nvr-head:hover { background: var(--bg-3); }
+  .nvr-card.open .nvr-head { border-bottom-color: var(--border); }
+
+  .nvr-dot {
+    width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0;
+  }
+  .nvr-dot.ok   { background: var(--green);  box-shadow: 0 0 7px var(--green); }
+  .nvr-dot.warn { background: var(--orange); box-shadow: 0 0 7px var(--orange); }
+  .nvr-dot.err  { background: var(--red);    box-shadow: 0 0 7px var(--red); }
+
+  .nvr-names { flex: 1; min-width: 0; }
+  .nvr-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 15px; font-weight: 700;
+    color: var(--text); letter-spacing: .03em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .nvr-meta { font-size: 11px; color: var(--text-3); font-family: monospace; margin-top: 1px; }
+
+  .nvr-counts {
+    display: flex; gap: 1.2rem; flex-shrink: 0;
+  }
+  .nvr-cnt { display: flex; flex-direction: column; align-items: center; }
+  .nvr-cnt .n { font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 800; line-height: 1; }
+  .nvr-cnt .n.ok  { color: var(--green); }
+  .nvr-cnt .n.err { color: var(--red); }
+  .nvr-cnt .l { font-size: 9px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--text-3); margin-top: 1px; }
+
+  .nvr-ms { font-size: 10px; color: var(--text-3); font-family: monospace; flex-shrink: 0; text-align: right; }
+
+  .nvr-arrow { color: var(--text-3); font-size: 11px; transition: transform .2s; flex-shrink: 0; }
+  .nvr-card.open .nvr-arrow { transform: rotate(90deg); }
+
+  /* ── NVR body ── */
+  .nvr-body { display: none; padding: 1rem 1.1rem; }
+  .nvr-card.open .nvr-body { display: block; }
+
+  /* ── Device info strip ── */
+  .dev-strip {
+    display: flex; flex-wrap: wrap; gap: .5rem;
+    margin-bottom: .9rem;
+    padding-bottom: .9rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .dev-chip {
+    font-size: 11px; font-family: monospace;
+    color: var(--text-3);
+    background: var(--bg-3);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 8px;
+  }
+  .dev-chip strong { color: var(--text-2); }
+
+  /* ── HDD strip ── */
+  .hdd-row { display: flex; flex-wrap: wrap; gap: .6rem; margin-bottom: .9rem; }
+  .hdd-chip {
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: 7px; padding: .4rem .8rem;
+    font-size: 11px; display: flex; align-items: center; gap: .5rem;
+  }
+  .h-dot { width: 7px; height: 7px; border-radius: 50%; }
+  .h-dot.ok   { background: var(--green); }
+  .h-dot.warn { background: var(--orange); }
+  .h-dot.err  { background: var(--red); }
+  .h-bar {
+    height: 4px; width: 56px;
+    background: var(--border); border-radius: 2px; overflow: hidden;
+  }
+  .h-fill { height: 100%; border-radius: 2px; background: var(--green); transition: width .4s; }
+  .h-fill.warn { background: var(--orange); }
+  .h-fill.crit { background: var(--red); }
+
+  /* ── Camera table ── */
+  .cam-tbl { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .cam-tbl th {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: .09em; color: var(--text-3);
+    padding: .4rem .65rem; text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .cam-tbl td {
+    padding: .5rem .65rem; border-bottom: 1px solid var(--border);
+    color: var(--text-2); vertical-align: middle;
+  }
+  .cam-tbl tr:last-child td { border-bottom: none; }
+  .cam-tbl tr:hover td { background: var(--bg-3); color: var(--text); }
+
+  .pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 2px 8px; border-radius: 20px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em;
+  }
+  .pill.online  { background: var(--green-soft);  color: var(--green);  border: 1px solid rgba(34,197,94,.3); }
+  .pill.offline { background: var(--red-soft);    color: var(--red);    border: 1px solid rgba(232,64,87,.3); }
+  .pill.idle    { background: var(--bg-4, #222); color: var(--text-3); border: 1px solid var(--border); }
+
+  .signal-ok  { color: var(--green); font-size: 11px; }
+  .signal-err { color: var(--red);   font-size: 11px; }
+  .rec-on  { color: var(--red);    font-size: 10px; font-weight: 700; font-family: monospace; letter-spacing: .06em; }
+  .rec-off { color: var(--text-3); font-size: 10px; }
+  .mono    { font-family: monospace; color: var(--text-3); }
+
+  /* ── Error / unreachable ── */
+  .nvr-err-body {
+    padding: .8rem 1.1rem 1rem;
+    font-size: 12px; font-family: monospace; color: var(--red);
+  }
+
+  /* ── Empty / states ── */
+  .state-empty {
+    text-align: center; padding: 3.5rem 1rem; color: var(--text-3); font-size: 13px;
+  }
+  .state-empty .ico { font-size: 2.8rem; margin-bottom: .6rem; }
+
+  /* ── Log drawer ── */
+  .log-drawer {
+    display: none;
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 10px; margin-top: 1rem;
+    overflow: hidden;
+  }
+  .log-drawer.open { display: block; }
+  .log-drawer-head {
+    background: var(--bg-3); padding: .7rem 1rem;
+    display: flex; justify-content: space-between; align-items: center;
+    border-bottom: 1px solid var(--border);
+  }
+  .log-drawer-title {
+    font-family: 'Barlow Condensed', sans-serif; font-size: 13px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: .07em; color: var(--text);
+  }
+  .log-list {
+    max-height: 320px; overflow-y: auto;
+    font-family: monospace; font-size: 11px;
+  }
+  .log-entry {
+    display: grid; grid-template-columns: 140px 70px 1fr;
+    gap: .5rem; padding: .35rem 1rem;
+    border-bottom: 1px solid var(--border);
+    align-items: baseline;
+  }
+  .log-entry:last-child { border-bottom: none; }
+  .log-ts    { color: var(--text-3); }
+  .log-lvl   { font-weight: 700; font-size: 10px; text-transform: uppercase; }
+  .log-lvl.INFO    { color: var(--green); }
+  .log-lvl.WARNING { color: var(--orange); }
+  .log-lvl.ERROR   { color: var(--red); }
+  .log-lvl.DEBUG   { color: var(--text-3); }
+  .log-msg   { color: var(--text-2); }
+  .log-detail { color: var(--text-3); font-size: 10px; }
+</style>
+{% endblock %}
+
+{% block content %}
+
+<!-- Cabeçalho -->
+<div class="conf-topbar">
+  <div>
+    <div class="conf-title">Conferência de Câmeras</div>
+    <div class="conf-subtitle">Status em tempo real via Hikvision ISAPI · Digest Auth</div>
+  </div>
+  <div style="display:flex;gap:.5rem;align-items:center;">
+    <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn-logs">🗄 Gerenciar NVRs</a>
+    <a href="{{ url_for('conferencia.relatorio') }}" class="btn-logs">📊 Relatório</a>
+    <button class="btn-logs" id="btnLogs" onclick="toggleLogs()">⚠ Eventos</button>
+    <button class="btn-poll" id="btnPoll" onclick="carregarStatus()">
+      <span class="spin" id="pollSpin"></span>
+      <span id="pollLbl">↺ Atualizar</span>
+    </button>
+  </div>
+</div>
+
+<!-- Resumo -->
+<div class="summary-row">
+  <div class="s-card c-gold"><div class="s-num" id="sNvrs">–</div><div class="s-lbl">NVRs</div></div>
+  <div class="s-card c-green"><div class="s-num ok" id="sOk">–</div><div class="s-lbl">NVRs OK</div></div>
+  <div class="s-card c-orange"><div class="s-num warn" id="sWarn">–</div><div class="s-lbl">Atenção</div></div>
+  <div class="s-card c-red"><div class="s-num err" id="sErr">–</div><div class="s-lbl">Inacessíveis</div></div>
+  <div class="s-card c-gold"><div class="s-num" id="sCTotal">–</div><div class="s-lbl">Câmeras</div></div>
+  <div class="s-card c-green"><div class="s-num ok" id="sCOn">–</div><div class="s-lbl">Online</div></div>
+  <div class="s-card c-red"><div class="s-num err" id="sCOff">–</div><div class="s-lbl">Offline</div></div>
+</div>
+
+<!-- Timestamp -->
+<div class="ts-line" id="tsLine">Aguardando primeira consulta…</div>
+
+<!-- Log drawer -->
+<div class="log-drawer" id="logDrawer">
+  <div class="log-drawer-head">
+    <span class="log-drawer-title">⚠ Eventos de Monitoramento</span>
+    <div style="display:flex;gap:.5rem;align-items:center;">
+      <label style="font-size:11px;color:var(--text-3);display:flex;align-items:center;gap:5px;cursor:pointer;">
+        <input type="checkbox" id="chkTodos" onchange="carregarLogs()"
+               style="accent-color:var(--gold);width:13px;height:13px;">
+        Mostrar resolvidos
+      </label>
+      <button class="btn-logs" onclick="carregarLogs()" style="font-size:11px;padding:4px 10px;">↺ Atualizar</button>
+      <button class="btn-logs" onclick="toggleLogs()" style="font-size:11px;padding:4px 10px;">✕</button>
+    </div>
+  </div>
+  <div class="log-list" id="logList">
+    <div style="padding:1.5rem;text-align:center;color:var(--text-3);font-size:12px;">Nenhum log ainda.</div>
+  </div>
+</div>
+
+<!-- Lista de NVRs -->
+<div class="nvr-stack" id="nvrStack">
+  <div class="state-empty">
+    <div class="ico">🎥</div>
+    Clique em <strong style="color:var(--gold);">Atualizar</strong> para consultar os NVRs
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const POLL_URL     = "{{ url_for('conferencia.api_status') }}";
+const EVENTOS_URL  = "{{ url_for('conferencia.api_eventos') }}";
+
+// ── Loading state ──────────────────────────────────────
+function setLoading(on) {
+  const btn = document.getElementById('btnPoll');
+  const sp  = document.getElementById('pollSpin');
+  const lbl = document.getElementById('pollLbl');
+  btn.disabled = on;
+  btn.classList.toggle('loading', on);
+  sp.style.display  = on ? 'inline-block' : 'none';
+  lbl.textContent   = on ? 'Consultando…' : '↺ Atualizar';
+}
+
+// ── Helpers de classe ──────────────────────────────────
+function hClass(health) {
+  if (health === 'OK') return 'ok';
+  if (health === 'ATENÇÃO') return 'warn';
+  return 'err';
+}
+function hddDot(s) { return s === 0 ? 'ok' : (s === 1 ? 'warn' : 'err'); }
+function hddBar(p) { return p > 90 ? 'crit' : (p > 75 ? 'warn' : ''); }
+
+// ── Renderização de câmeras ────────────────────────────
+function pillCam(c) {
+  if (!c.online) return `<span class="pill offline">● Offline</span>`;
+  if (c.raw_status === 'idle') return `<span class="pill idle">Idle</span>`;
+  return `<span class="pill online">● Online</span>`;
+}
+
+function renderCams(cams) {
+  if (!cams || cams.length === 0)
+    return `<p style="color:var(--text-3);font-size:12px;padding:.5rem 0;">Nenhum canal.</p>`;
+
+  const rows = cams.map(c => {
+    const sig = c.signal_ok
+      ? `<span class="signal-ok">● Normal</span>`
+      : `<span class="signal-err">● Perda</span>`;
+    const rec = c.recording
+      ? `<span class="rec-on">● REC</span>`
+      : `<span class="rec-off">○ –</span>`;
+    const recEx = c.recording
+      ? (['OK','Exc HD','Offline','Outro'][c.record_status] || '?')
+      : '';
+    return `<tr>
+      <td class="mono">${c.id}</td>
+      <td><strong style="color:var(--text)">${c.name}</strong></td>
+      <td>${pillCam(c)}</td>
+      <td>${sig}</td>
+      <td>${rec} <span style="font-size:10px;color:var(--text-3)">${recEx}</span></td>
+      <td class="mono">${c.bit_rate_kbps ? c.bit_rate_kbps + ' Kbps' : '–'}</td>
+      <td class="mono">${c.ip || '–'}</td>
+      <td style="font-size:11px;color:var(--text-3)">${c.model || '–'}</td>
+    </tr>`;
+  }).join('');
+
+  return `<table class="cam-tbl">
+    <thead><tr>
+      <th>Canal</th><th>Nome</th><th>Status</th><th>Sinal</th>
+      <th>Gravação</th><th>Bitrate</th><th>IP</th><th>Modelo</th>
+    </tr></thead>
+    <tbody>${rows}</tbody>
+  </table>`;
+}
+
+// ── Renderização de HDDs ───────────────────────────────
+function renderHdds(hdds) {
+  if (!hdds || hdds.length === 0) return '';
+  const chips = hdds.map(h => {
+    const capGB  = (h.capacity_mb  / 1024).toFixed(0);
+    const freeGB = (h.free_space_mb / 1024).toFixed(0);
+    return `<div class="hdd-chip">
+      <span class="h-dot ${hddDot(h.status)}"></span>
+      <span style="color:var(--text-2)">HD${h.id} · <strong>${h.status_label}</strong></span>
+      <div class="h-bar"><div class="h-fill ${hddBar(h.usage_pct)}" style="width:${h.usage_pct}%"></div></div>
+      <span style="color:var(--text-3);font-size:10px">${h.usage_pct}% · ${freeGB}/${capGB}GB</span>
+    </div>`;
+  }).join('');
+  return `<div class="hdd-row">${chips}</div>`;
+}
+
+// ── Renderização de device info ────────────────────────
+function renderDevInfo(di) {
+  if (!di) return '';
+  const chips = [];
+  if (di.device_name) chips.push(`<span class="dev-chip"><strong>${di.device_name}</strong></span>`);
+  if (di.model)       chips.push(`<span class="dev-chip">Modelo: <strong>${di.model}</strong></span>`);
+  if (di.firmware)    chips.push(`<span class="dev-chip">FW: <strong>${di.firmware}</strong></span>`);
+  if (di.serial)      chips.push(`<span class="dev-chip">S/N: <strong>${di.serial}</strong></span>`);
+  if (chips.length === 0) return '';
+  return `<div class="dev-strip">${chips.join('')}</div>`;
+}
+
+// ── Renderização de um NVR ─────────────────────────────
+function renderNvr(nvr) {
+  const hc = hClass(nvr.health);
+  const uid = 'nvr_' + nvr.nvr_id.replace(/\W/g,'_');
+  const ts = nvr.polled_at
+    ? new Date(nvr.polled_at).toLocaleTimeString('pt-BR')
+    : '?';
+  const ms  = nvr.poll_duration_ms ? `${nvr.poll_duration_ms}ms` : '';
+  const host = nvr.port ? `${nvr.host}:${nvr.port}` : nvr.host;
+  let body;
+  if (!nvr.reachable) {
+    body = `<div class="nvr-err-body">⚠ Inacessível — ${nvr.error || 'sem resposta'}</div>`;
+  } else {
+    body = `<div class="nvr-body">
+      ${renderDevInfo(nvr.device_info)}
+      ${renderHdds(nvr.hdds)}
+      ${renderCams(nvr.cameras)}
+    </div>`;
+  }
+
+  return `<div class="nvr-card h-${hc}" id="${uid}">
+    <div class="nvr-head" onclick="toggleNvr('${uid}')">
+      <span class="nvr-dot ${hc}"></span>
+      <div class="nvr-names">
+        <div class="nvr-title">${nvr.name}</div>
+        <div class="nvr-meta">${host} · ${ts}</div>
+      </div>
+      <div class="nvr-counts">
+        <div class="nvr-cnt"><span class="n ok">${nvr.cameras_online}</span><span class="l">Online</span></div>
+        <div class="nvr-cnt"><span class="n err">${nvr.cameras_offline}</span><span class="l">Offline</span></div>
+        <div class="nvr-cnt"><span class="n">${nvr.cameras_total}</span><span class="l">Total</span></div>
+      </div>
+      <div class="nvr-ms">${ms}</div>
+      <span class="nvr-arrow">▶</span>
+    </div>
+    ${body}
+  </div>`;
+}
+
+function toggleNvr(id) {
+  document.getElementById(id)?.classList.toggle('open');
+}
+
+// ── Polling principal ──────────────────────────────────
+function updateSummary(s) {
+  document.getElementById('sNvrs').textContent  = s.nvrs_total;
+  document.getElementById('sOk').textContent    = s.nvrs_ok;
+  document.getElementById('sWarn').textContent  = s.nvrs_atencao;
+  document.getElementById('sErr').textContent   = s.nvrs_inacessiveis;
+  document.getElementById('sCTotal').textContent= s.cameras_total;
+  document.getElementById('sCOn').textContent   = s.cameras_online;
+  document.getElementById('sCOff').textContent  = s.cameras_offline;
+}
+
+async function carregarStatus() {
+  setLoading(true);
+  try {
+    const res = await fetch(POLL_URL);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+
+    updateSummary(data.summary);
+
+    const ts = new Date(data.timestamp).toLocaleString('pt-BR');
+    document.getElementById('tsLine').innerHTML =
+      `Última atualização: <span>${ts}</span>`;
+
+    const stack = document.getElementById('nvrStack');
+    if (!data.nvrs || data.nvrs.length === 0) {
+      stack.innerHTML = `<div class="state-empty"><div class="ico">📭</div>Nenhum NVR ativo cadastrado.</div>`;
+    } else {
+      stack.innerHTML = data.nvrs.map(renderNvr).join('');
+      // Abre automaticamente NVRs com problemas
+      data.nvrs.forEach(n => {
+        if (n.health !== 'OK') {
+          document.getElementById('nvr_' + n.nvr_id.replace(/\W/g,'_'))?.classList.add('open');
+        }
+      });
+    }
+
+    // Atualiza eventos se o drawer estiver aberto
+    if (document.getElementById('logDrawer').classList.contains('open')) {
+      carregarLogs();
+    }
+  } catch(e) {
+    document.getElementById('nvrStack').innerHTML =
+      `<div class="state-empty"><div class="ico">⚠</div>Erro: ${e.message}</div>`;
+    console.error(e);
+  } finally {
+    setLoading(false);
+  }
+}
+
+// ── Drawer de eventos ──────────────────────────────────
+function toggleLogs() {
+  const d = document.getElementById('logDrawer');
+  d.classList.toggle('open');
+  if (d.classList.contains('open')) carregarLogs();
+}
+
+async function carregarLogs() {
+  const todos = document.getElementById('chkTodos')?.checked ? '0' : '1';
+  try {
+    const res  = await fetch(`${EVENTOS_URL}?ativos=${todos}`);
+    const data = await res.json();
+    const list = document.getElementById('logList');
+    const eventos = data.eventos || [];
+    if (eventos.length === 0) {
+      list.innerHTML = `<div style="padding:1.5rem;text-align:center;color:var(--text-3);font-size:12px;">
+        ${todos === '1' ? 'Nenhum evento ativo no momento. ✅' : 'Nenhum evento registrado.'}
+      </div>`;
+      return;
+    }
+    list.innerHTML = eventos.map(e => {
+      const resolvido = e.resolvido_em
+        ? `<span style="color:var(--green);font-size:10px;">✓ resolvido ${e.resolvido_em}</span>`
+        : `<span style="color:var(--red);font-size:10px;">● ativo</span>`;
+      const detalhe = e.detalhe || e.mensagem || e.message || '';
+      return `<div class="log-entry">
+        <span class="log-ts">${e.aberto_em || e.ts || ''}</span>
+        <span class="log-lvl ${e.resolvido_em ? 'INFO' : 'ERROR'}">${e.tipo || e.level || 'EVENTO'}</span>
+        <div>
+          <div class="log-msg">[${e.nvr_id || '–'}] ${e.descricao || e.message || detalhe}</div>
+          <div class="log-detail">${resolvido}</div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    document.getElementById('logList').innerHTML =
+      `<div style="padding:1rem;color:var(--red);font-size:12px;font-family:monospace;">Erro: ${e.message}</div>`;
+  }
+}
+
+// ── Auto-refresh 2 min ─────────────────────────────────
+setInterval(carregarStatus, 120_000);
+
+// ── Carga inicial ──────────────────────────────────────
+carregarStatus();
+</script>
+{% endblock %}

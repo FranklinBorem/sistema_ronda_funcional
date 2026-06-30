@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+{% block title %}Importar NVRs — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Importar NVRs em Lote</h1>
+    <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn btn-primary btn-sm">← Voltar</a>
+</div>
+
+<style>
+    .import-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 1.5rem;
+        margin-bottom: 1.5rem;
+    }
+    .import-card {
+        background: var(--bg-card);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1.5rem;
+    }
+    .import-card-title {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .12em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        margin-bottom: 1.25rem;
+        padding-bottom: .75rem;
+        border-bottom: 1px solid var(--border);
+    }
+    .upload-area {
+        border: 2px dashed var(--border);
+        border-radius: 10px;
+        padding: 3rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all .2s;
+        position: relative;
+    }
+    .upload-area:hover,
+    .upload-area.drag-over {
+        border-color: var(--gold-border);
+        background: var(--gold-soft);
+    }
+    .upload-area input[type=file] {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        cursor: pointer;
+        width: 100%;
+        height: 100%;
+    }
+    .upload-icon {
+        font-size: 2.5rem;
+        margin-bottom: .75rem;
+        display: block;
+    }
+    .upload-label {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-main);
+        display: block;
+        margin-bottom: .5rem;
+    }
+    .upload-hint {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+    .selected-file {
+        display: none;
+        margin-top: 1rem;
+        background: var(--gold-soft);
+        border: 1px solid var(--gold-border);
+        border-radius: 6px;
+        padding: 10px 14px;
+        font-size: 12px;
+        color: var(--gold);
+        align-items: center;
+        gap: 8px;
+    }
+    .col-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+    }
+    .col-table th {
+        font-family: 'Barlow Condensed', sans-serif;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: .1em;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        text-align: left;
+        padding: 6px 10px;
+        border-bottom: 1px solid var(--border);
+    }
+    .col-table td {
+        padding: 8px 10px;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        color: var(--text-main);
+        vertical-align: top;
+    }
+    .col-table td:first-child {
+        font-family: monospace;
+        font-size: 11px;
+        color: var(--gold);
+    }
+    .col-table tr:last-child td {
+        border-bottom: none;
+    }
+    .badge-obrig {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--red);
+        background: var(--red-soft);
+        border-radius: 4px;
+        padding: 1px 5px;
+        margin-left: 4px;
+        text-transform: uppercase;
+    }
+    .badge-padrao {
+        display: inline-block;
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--text-muted);
+        background: rgba(255,255,255,0.05);
+        border-radius: 4px;
+        padding: 1px 5px;
+        margin-left: 4px;
+        text-transform: uppercase;
+    }
+    .csv-preview {
+        background: rgba(0,0,0,0.3);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 1rem;
+        font-family: monospace;
+        font-size: 11px;
+        color: var(--text-muted);
+        overflow-x: auto;
+        line-height: 1.8;
+        white-space: pre;
+    }
+    .csv-preview .h { color: var(--gold); font-weight: 700; }
+    .csv-preview .v { color: #a0e0b0; }
+    .rules-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+    }
+    .rules-list li {
+        font-size: 12px;
+        color: var(--text-muted);
+        padding: 5px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.03);
+        display: flex;
+        gap: 8px;
+        align-items: flex-start;
+    }
+    .rules-list li:last-child { border-bottom: none; }
+    .rules-list li::before {
+        content: "·";
+        color: var(--gold);
+        font-size: 16px;
+        line-height: 1;
+        flex-shrink: 0;
+    }
+    .submit-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 1.5rem;
+    }
+</style>
+
+<!-- ALERTAS FLASH -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}" style="margin-bottom:.5rem;">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+<div class="import-grid">
+
+    <!-- COLUNA ESQUERDA: upload -->
+    <div>
+        <div class="import-card">
+            <div class="import-card-title">Arquivo CSV</div>
+
+            <form method="POST" enctype="multipart/form-data" id="form-import">
+                <div class="upload-area" id="drop-area">
+                    <input type="file" name="arquivo" id="arquivo-input"
+                           accept=".csv,.txt" onchange="onFileSelect(this)">
+                    <span class="upload-icon">📂</span>
+                    <span class="upload-label">Arraste o CSV aqui ou clique para selecionar</span>
+                    <span class="upload-hint">Formatos: .csv · Separador: ; ou ,<br>Encoding: UTF-8 ou Latin-1</span>
+                </div>
+
+                <div class="selected-file" id="selected-file">
+                    <span>📄</span>
+                    <span id="selected-file-name"></span>
+                </div>
+
+                <div class="submit-row">
+                    <a href="{{ url_for('conferencia.nvrs_importar_modelo') }}"
+                       class="btn btn-secondary btn-sm">
+                        ⬇ Baixar CSV modelo
+                    </a>
+                    <button type="submit" class="btn btn-success" id="btn-submit" disabled>
+                        Importar NVRs
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Regras -->
+        <div class="import-card" style="margin-top:1rem;">
+            <div class="import-card-title">Regras de importação</div>
+            <ul class="rules-list">
+                <li>Linhas com <code>nvr_id</code> já cadastrado são <strong>ignoradas</strong> — não sobrescreve dados existentes.</li>
+                <li>Linhas com <code>nvr_id</code> ou <code>ip</code> vazios são descartadas com aviso.</li>
+                <li>Campos <code>porta</code>, <code>usuario</code> e <code>ativo</code> têm valores padrão e são opcionais.</li>
+                <li>Valores de <code>use_https</code> e <code>ativo</code>: use <code>1</code>, <code>sim</code>, <code>true</code> para ativar; qualquer outro valor (inclusive vazio) desativa.</li>
+                <li>A planilha pode ser exportada do Excel como <em>CSV (separado por vírgulas)</em> ou <em>CSV UTF-8 (separado por ponto e vírgula)</em>.</li>
+                <li>Número máximo recomendado por importação: <strong>200 NVRs</strong>.</li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- COLUNA DIREITA: estrutura do CSV -->
+    <div>
+        <div class="import-card">
+            <div class="import-card-title">Estrutura do CSV</div>
+
+            <table class="col-table">
+                <thead>
+                    <tr>
+                        <th>Coluna</th>
+                        <th>Descrição</th>
+                        <th>Padrão</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>nvr_id <span class="badge-obrig">obrigatório</span></td>
+                        <td>Identificador único (sem espaços). Ex: <code>nvr_altair_01</code></td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>ip <span class="badge-obrig">obrigatório</span></td>
+                        <td>Endereço IP do dispositivo. Ex: <code>10.38.10.202</code></td>
+                        <td>—</td>
+                    </tr>
+                    <tr>
+                        <td>nome</td>
+                        <td>Nome de exibição. Ex: <code>UFV Altair - NVR 01</code></td>
+                        <td><span class="badge-padrao">= nvr_id</span></td>
+                    </tr>
+                    <tr>
+                        <td>site</td>
+                        <td>Usina / localidade. Ex: <code>Altair SP</code></td>
+                        <td><span class="badge-padrao">vazio</span></td>
+                    </tr>
+                    <tr>
+                        <td>porta</td>
+                        <td>Porta HTTP do dispositivo</td>
+                        <td><span class="badge-padrao">80</span></td>
+                    </tr>
+                    <tr>
+                        <td>usuario</td>
+                        <td>Usuário de acesso ao NVR/câmera</td>
+                        <td><span class="badge-padrao">admin</span></td>
+                    </tr>
+                    <tr>
+                        <td>senha</td>
+                        <td>Senha de acesso</td>
+                        <td><span class="badge-padrao">vazio</span></td>
+                    </tr>
+                    <tr>
+                        <td>use_https</td>
+                        <td>Usar HTTPS? (<code>1</code> = sim)</td>
+                        <td><span class="badge-padrao">0</span></td>
+                    </tr>
+                    <tr>
+                        <td>ativo</td>
+                        <td>Incluir no monitoramento? (<code>1</code> = sim)</td>
+                        <td><span class="badge-padrao">1</span></td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <div style="margin-top:1.25rem;">
+                <div class="import-card-title" style="margin-top:0;">Exemplo de conteúdo</div>
+                <div class="csv-preview"><span class="h">nvr_id;nome;site;ip;porta;usuario;senha;use_https;ativo</span>
+<span class="v">nvr_altair_01;UFV Altair - NVR 01;Altair SP;10.38.10.202;80;admin;senha123;0;1</span>
+<span class="v">nvr_altair_02;UFV Altair - NVR 02;Altair SP;10.38.10.203;80;admin;senha123;0;1</span>
+<span class="v">nvr_sp_dome_01;SP Dome 01;São Paulo;192.168.1.100;8080;admin;outrasenha;0;1</span></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Drag & drop visual
+const dropArea = document.getElementById('drop-area');
+const fileInput = document.getElementById('arquivo-input');
+const btnSubmit = document.getElementById('btn-submit');
+const selectedFile = document.getElementById('selected-file');
+const selectedFileName = document.getElementById('selected-file-name');
+
+['dragenter','dragover'].forEach(evt => {
+    dropArea.addEventListener(evt, e => { e.preventDefault(); dropArea.classList.add('drag-over'); });
+});
+['dragleave','drop'].forEach(evt => {
+    dropArea.addEventListener(evt, e => { e.preventDefault(); dropArea.classList.remove('drag-over'); });
+});
+dropArea.addEventListener('drop', e => {
+    fileInput.files = e.dataTransfer.files;
+    onFileSelect(fileInput);
+});
+
+function onFileSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+    selectedFileName.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+    selectedFile.style.display = 'flex';
+    btnSubmit.disabled = false;
+    btnSubmit.textContent = `Importar "${file.name}"`;
+}
+</script>
+{% endblock %}

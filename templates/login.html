@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Login — Grupo Ronda</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800;900&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --gold: #f5c400;
+            --gold-dim: #c49a00;
+        }
+
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'DM Sans', sans-serif;
+            background: #080809;
+            color: #fff;
+            min-height: 100vh;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* ── LEFT PANEL ── */
+        .left {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 3rem;
+            position: relative;
+            background:
+                radial-gradient(ellipse 80% 60% at 20% 110%, rgba(245,196,0,0.12), transparent),
+                radial-gradient(ellipse 40% 40% at 80% -10%, rgba(245,196,0,0.06), transparent),
+                #0a0a0b;
+            border-right: 1px solid rgba(255,255,255,0.05);
+        }
+
+        /* Dot grid texture */
+        .left::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background-image: radial-gradient(circle, rgba(245,196,0,0.08) 1px, transparent 1px);
+            background-size: 28px 28px;
+            pointer-events: none;
+        }
+
+        .left-brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            position: relative;
+        }
+        .left-brand img {
+            width: 44px; height: 44px;
+            object-fit: contain;
+            border-radius: 8px;
+            border: 1px solid rgba(245,196,0,0.3);
+        }
+        .left-brand-name {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 22px;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+        }
+        .left-brand-name span { color: var(--gold); }
+
+        .left-hero {
+            position: relative;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .left-hero h2 {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: clamp(42px, 5vw, 64px);
+            font-weight: 900;
+            line-height: 0.95;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            color: #fff;
+            margin-bottom: 1.5rem;
+        }
+        .left-hero h2 em {
+            font-style: normal;
+            color: var(--gold);
+            display: block;
+        }
+        .left-hero p {
+            font-size: 14px;
+            color: rgba(255,255,255,0.4);
+            max-width: 380px;
+            line-height: 1.7;
+            text-align: center;
+        }
+
+        .left-stats {
+            display: flex;
+            gap: 2rem;
+            position: relative;
+        }
+        .stat-item {
+            border-left: 2px solid rgba(245,196,0,0.3);
+            padding-left: 14px;
+        }
+        .stat-item-value {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--gold);
+            line-height: 1.1;
+        }
+        .stat-item-label {
+            font-size: 10px;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.07em;
+            margin-top: 3px;
+        }
+
+        /* ── RIGHT PANEL ── */
+        .right {
+            width: 420px;
+            flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 3rem;
+            background: #0d0d0f;
+        }
+
+        .login-title {
+            font-family: 'Barlow Condensed', sans-serif;
+            font-size: 28px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: #fff;
+            margin-bottom: 6px;
+        }
+        .login-subtitle {
+            font-size: 13px;
+            color: rgba(255,255,255,0.3);
+            margin-bottom: 2.5rem;
+        }
+
+        .form-group { margin-bottom: 1.1rem; }
+        label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            color: rgba(255,255,255,0.3);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 7px;
+        }
+        input {
+            width: 100%;
+            padding: 12px 14px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 14px;
+            font-family: 'DM Sans', sans-serif;
+            transition: all 0.2s;
+        }
+        input::placeholder { color: rgba(255,255,255,0.2); }
+        input:focus {
+            outline: none;
+            border-color: rgba(245,196,0,0.5);
+            background: rgba(245,196,0,0.04);
+            box-shadow: 0 0 0 3px rgba(245,196,0,0.08);
+        }
+
+        .btn-login {
+            width: 100%;
+            padding: 13px;
+            margin-top: 6px;
+            background: var(--gold);
+            color: #111;
+            border: none;
+            border-radius: 10px;
+            font-size: 15px;
+            font-weight: 700;
+            font-family: 'Barlow Condensed', sans-serif;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-login:hover {
+            background: #ffd633;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 28px rgba(245,196,0,0.25);
+        }
+        .btn-login:active { transform: scale(0.98); }
+
+        .alert {
+            padding: 11px 14px;
+            border-radius: 9px;
+            margin-bottom: 1.2rem;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid transparent;
+        }
+        .alert-danger  { background: rgba(232,64,87,0.1);   border-color: rgba(232,64,87,0.3);   color: #f87171; }
+        .alert-warning { background: rgba(249,115,22,0.1);  border-color: rgba(249,115,22,0.3);  color: #fb923c; }
+        .alert-success { background: rgba(34,197,94,0.1);   border-color: rgba(34,197,94,0.3);   color: #4ade80; }
+        .alert-info    { background: rgba(59,130,246,0.1);  border-color: rgba(59,130,246,0.3);  color: #60a5fa; }
+
+        .login-footer {
+            margin-top: 2.5rem;
+            font-size: 11px;
+            color: rgba(255,255,255,0.15);
+            text-align: center;
+        }
+
+        /* ── RESPONSIVE ── */
+        @media (max-width: 768px) {
+            body { flex-direction: column; }
+            .left { display: none; }
+            .right {
+                width: 100%;
+                min-height: 100vh;
+                padding: 2rem 1.5rem;
+                justify-content: center;
+            }
+        }
+
+        /* ── ANIMATE IN ── */
+        .right > * {
+            animation: fadeUp 0.4s ease both;
+        }
+        .right > *:nth-child(1) { animation-delay: 0.05s; }
+        .right > *:nth-child(2) { animation-delay: 0.1s; }
+        .right > *:nth-child(3) { animation-delay: 0.15s; }
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(12px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+
+<!-- LEFT: brand panel -->
+<div class="left">
+    <div class="left-brand">
+        <img src="{{ url_for('static', filename='img/logo.jpeg') }}" alt="Grupo Ronda">
+        <span class="left-brand-name">GRUPO <span>RONDA</span></span>
+    </div>
+
+    <div class="left-hero">
+        <h2>
+            Monitoramento
+            <em>Inteligente</em>
+            24 Horas
+        </h2>
+        <p>
+            Vigilância patrimonial de alta performance com cobertura
+            total do perímetro. Registros auditáveis, alertas imediatos
+            e relatórios detalhados por turno operacional.
+        </p>
+    </div>
+
+    <div class="left-stats">
+        <div class="stat-item">
+            <div class="stat-item-value">24/7</div>
+            <div class="stat-item-label">Operação contínua</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-item-value">100%</div>
+            <div class="stat-item-label">Rastreabilidade</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-item-value">TEMPO REAL</div>
+            <div class="stat-item-label">Alertas imediatos</div>
+        </div>
+        <div class="stat-item">
+            <div class="stat-item-value">MULTI-SITE</div>
+            <div class="stat-item-label">Gestão centralizada</div>
+        </div>
+    </div>
+</div>
+
+<!-- RIGHT: login form -->
+<div class="right">
+    <div class="login-title">Entrar</div>
+    <div class="login-subtitle">Acesse com suas credenciais de monitor</div>
+
+    {% for category, message in get_flashed_messages(with_categories=true) %}
+    <div class="alert alert-{{ category }}">{{ message }}</div>
+    {% endfor %}
+
+    <form method="POST">
+        <div class="form-group">
+            <label for="usuario">Usuário</label>
+            <input type="text" id="usuario" name="usuario"
+                   placeholder="seu.usuario" autofocus required>
+        </div>
+        <div class="form-group">
+            <label for="senha">Senha</label>
+            <input type="password" id="senha" name="senha"
+                   placeholder="••••••••" required>
+        </div>
+        <button type="submit" class="btn-login">Entrar no Sistema</button>
+    </form>
+
+    <div class="login-footer">Grupo Ronda © 2026 — Sistema de Segurança Patrimonial</div>
+</div>
+
+</body>
+</html>

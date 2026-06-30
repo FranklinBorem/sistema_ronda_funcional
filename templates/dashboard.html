@@ -1,0 +1,310 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Grupo Ronda{% endblock %}
+
+{% block content %}
+
+<div class="page-header">
+    <h1>Dashboard</h1>
+    <div style="display:flex; gap:10px; align-items:center;">
+        <select onchange="location.href='/dashboard?dias='+this.value"
+                style="padding:6px 12px; border:1px solid #2a2a2a; border-radius:7px;
+                       background:#181818; color:#888; font-size:12px; cursor:pointer; outline:none;">
+            <option value="7"  {% if dias==7  %}selected{% endif %}>7 dias</option>
+            <option value="15" {% if dias==15 %}selected{% endif %}>15 dias</option>
+            <option value="30" {% if dias==30 %}selected{% endif %}>30 dias</option>
+            <option value="90" {% if dias==90 %}selected{% endif %}>90 dias</option>
+        </select>
+        <form method="POST" action="{{ url_for('rondas.iniciar_ronda_multi') }}" style="margin:0;">
+            <button type="submit" class="btn btn-success" style="font-size:13px; padding:7px 18px;">
+                Iniciar Ronda
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- CARD MONITOR -->
+<div style="background:#0a0a0a; border:1px solid #1e1e1e; border-left:3px solid #f5c400;
+            border-radius:10px; padding:1rem 1.5rem; margin-bottom:1.5rem;
+            display:flex; align-items:center; justify-content:space-between;">
+    <div style="display:flex; align-items:center; gap:14px;">
+        <div style="width:40px; height:40px; border-radius:50%; background:#f5c400;
+                    display:flex; align-items:center; justify-content:center;
+                    font-size:16px; font-weight:700; color:#111; flex-shrink:0;">
+            {{ session.monitor_nome[0] | upper }}
+        </div>
+        <div>
+            <div style="font-size:14px; font-weight:700; color:#fff;">{{ session.monitor_nome }}</div>
+            <div style="font-size:11px; color:#555; margin-top:1px;">{{ session.monitor_turno }}</div>
+        </div>
+    </div>
+    <div style="text-align:right;">
+        <div style="font-size:10px; color:#444; text-transform:uppercase; letter-spacing:.06em;">Ultimo acesso</div>
+        <div style="font-size:12px; color:#f5c400; margin-top:2px;" id="hora-atual"></div>
+    </div>
+</div>
+
+<!-- SECAO: RONDAS -->
+<div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:#444;
+            text-transform:uppercase; margin-bottom:.75rem; padding-left:2px;">Rondas</div>
+
+<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+            background:#1a1a1a; border-radius:10px; overflow:hidden; margin-bottom:1.5rem;">
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">REALIZADAS</div>
+        <div style="font-size:34px; font-weight:700; color:#e0e0e0; line-height:1;">{{ kpi.rondas_total }}</div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">{{ kpi.rondas_hoje }} hoje</div>
+    </div>
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem; border-left:1px solid #1a1a1a;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">CONCLUIDAS</div>
+        <div style="font-size:34px; font-weight:700; color:#6ee7a0; line-height:1;">{{ kpi.rondas_ok }}</div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">sem ocorrencias</div>
+    </div>
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem; border-left:1px solid #1a1a1a;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">COM ALERTAS</div>
+        <div style="font-size:34px; font-weight:700; color:#f87171; line-height:1;">{{ kpi.rondas_alerta }}</div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">deteccoes registradas</div>
+    </div>
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem; border-left:1px solid #1a1a1a;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">DURACAO MEDIA</div>
+        <div style="font-size:34px; font-weight:700; color:#7dd3fc; line-height:1;">
+            {{ kpi.tempo_medio_min }}<span style="font-size:14px; color:#555; margin-left:2px;">min</span>
+        </div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">por ciclo</div>
+    </div>
+</div>
+
+<!-- SECAO: DETECCOES -->
+<div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:#444;
+            text-transform:uppercase; margin-bottom:.75rem; padding-left:2px;">Detecções</div>
+
+<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1px;
+            background:#1a1a1a; border-radius:10px; overflow:hidden; margin-bottom:1.5rem;">
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">TOTAL</div>
+        <div style="font-size:34px; font-weight:700; color:#e0e0e0; line-height:1;">{{ kpi.det_total }}</div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">no periodo</div>
+    </div>
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem; border-left:1px solid #1a1a1a;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">PENDENTES</div>
+        <div style="font-size:34px; font-weight:700; color:#f5c400; line-height:1;">{{ kpi.det_pendente }}</div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">sem tratativa</div>
+    </div>
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem; border-left:1px solid #1a1a1a;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">DETECÇÕES FALSAS</div>
+        <div style="font-size:34px; font-weight:700; color:#f87171; line-height:1;">{{ kpi.det_tratando }}</div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">descartadas</div>
+    </div>
+
+    <div style="background:#0d0d0d; padding:1.25rem 1.5rem; border-left:1px solid #1a1a1a;">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">TRATADOS</div>
+        <div style="font-size:34px; font-weight:700; color:#6ee7a0; line-height:1;">{{ kpi.det_tratado }}</div>
+        <div style="font-size:11px; color:#444; margin-top:.5rem;">com tratativa</div>
+    </div>
+</div>
+
+<!-- SECAO: QUALIDADE + GRAFICO -->
+<div style="display:grid; grid-template-columns:1fr 1.6fr; gap:1rem; margin-bottom:1.5rem;">
+
+    <!-- Qualidade do modelo -->
+    <div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:#444;
+                    text-transform:uppercase; margin-bottom:.75rem; padding-left:2px;">Qualidade do Modelo</div>
+
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#1a1a1a;
+                    border-radius:10px; overflow:hidden; margin-bottom:1px;">
+            <div style="background:#0d0d0d; padding:1.25rem 1.5rem;">
+                <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">CONFIRMADOS</div>
+                <div style="font-size:34px; font-weight:700; color:#6ee7a0; line-height:1;">{{ kpi.confirmados }}</div>
+                <div style="font-size:11px; color:#444; margin-top:.5rem;">invasoes reais</div>
+            </div>
+            <div style="background:#0d0d0d; padding:1.25rem 1.5rem; border-left:1px solid #1a1a1a;">
+                <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555; margin-bottom:.75rem;">DETECÇÕES FALSAS</div>
+                <div style="font-size:34px; font-weight:700; color:#f87171; line-height:1;">{{ kpi.falsos_positivos }}</div>
+                <div style="font-size:11px; color:#444; margin-top:.5rem;">descartados</div>
+            </div>
+        </div>
+
+        <!-- Precisao -->
+        <div style="background:#0d0d0d; border:1px solid #1a1a1a; border-radius:10px;
+                    padding:1.25rem 1.5rem; margin-top:1px;">
+            <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:.75rem;">
+                <div style="font-size:10px; font-weight:700; letter-spacing:.08em; color:#555;">PRECISAO DO MODELO</div>
+                <div style="font-size:24px; font-weight:700;
+                            color:{% if kpi.precisao >= 80 %}#6ee7a0{% elif kpi.precisao >= 60 %}#f5c400{% else %}#f87171{% endif %};">
+                    {{ kpi.precisao }}<span style="font-size:13px;">%</span>
+                </div>
+            </div>
+            <div style="background:#1a1a1a; border-radius:4px; height:5px; overflow:hidden;">
+                <div style="height:100%; border-radius:4px; transition:width .5s;
+                            width:{{ kpi.precisao }}%;
+                            background:{% if kpi.precisao >= 80 %}#6ee7a0{% elif kpi.precisao >= 60 %}#f5c400{% else %}#f87171{% endif %};"></div>
+            </div>
+            <div style="font-size:10px; color:#444; margin-top:.5rem;">confirmados / total</div>
+        </div>
+    </div>
+
+    <!-- Grafico deteccoes por dia -->
+    <div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:#444;
+                    text-transform:uppercase; margin-bottom:.75rem; padding-left:2px;">Deteccoes por Dia — ultimos 14 dias</div>
+        <div style="background:#0d0d0d; border:1px solid #1a1a1a; border-radius:10px;
+                    padding:1.25rem 1.5rem; height:calc(100% - 26px);">
+            <canvas id="chart-det" style="width:100%; height:180px;"></canvas>
+        </div>
+    </div>
+</div>
+
+<!-- SECAO: NVRs + RONDAS RECENTES -->
+<div style="display:grid; grid-template-columns:1fr 2fr; gap:1rem; margin-bottom:1.5rem;">
+
+    <!-- Top NVRs -->
+    <div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:#444;
+                    text-transform:uppercase; margin-bottom:.75rem; padding-left:2px;">
+            Alertas por NVR — top {{ kpi.top_nvrs|length }}
+        </div>
+        <div style="background:#0d0d0d; border:1px solid #1a1a1a; border-radius:10px; padding:1.25rem 1.5rem;">
+            {% if kpi.top_nvrs %}
+                {% for nvr in kpi.top_nvrs %}
+                <div style="margin-bottom:{% if not loop.last %}1rem{% else %}0{% endif %};">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
+                        <span style="font-size:12px; color:#aaa;">{{ nvr.nome }}</span>
+                        <span style="font-size:12px; font-weight:700; color:#f5c400;">{{ nvr.total }}</span>
+                    </div>
+                    <div style="background:#1a1a1a; border-radius:3px; height:4px; overflow:hidden;">
+                        <div style="background:#f5c400; height:100%; width:{{ nvr.pct }}%; border-radius:3px;"></div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <p style="color:#444; font-size:12px; text-align:center; padding:1rem 0;">Nenhum dado.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Rondas recentes -->
+    <div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:#444;
+                    text-transform:uppercase; margin-bottom:.75rem; padding-left:2px;">
+            Ultimas Rondas
+        </div>
+        <div style="background:#0d0d0d; border:1px solid #1a1a1a; border-radius:10px; overflow:hidden;">
+            {% if rondas %}
+            <table style="font-size:13px;">
+                <thead>
+                    <tr>
+                        <th style="background:#0d0d0d; padding:10px 16px; font-size:10px; letter-spacing:.08em; color:#444; font-weight:700; border-bottom:1px solid #1a1a1a;">#</th>
+                        <th style="background:#0d0d0d; padding:10px 16px; font-size:10px; letter-spacing:.08em; color:#444; font-weight:700; border-bottom:1px solid #1a1a1a;">Monitor</th>
+                        <th style="background:#0d0d0d; padding:10px 16px; font-size:10px; letter-spacing:.08em; color:#444; font-weight:700; border-bottom:1px solid #1a1a1a;">Inicio</th>
+                        <th style="background:#0d0d0d; padding:10px 16px; font-size:10px; letter-spacing:.08em; color:#444; font-weight:700; border-bottom:1px solid #1a1a1a;">Fim</th>
+                        <th style="background:#0d0d0d; padding:10px 16px; font-size:10px; letter-spacing:.08em; color:#444; font-weight:700; border-bottom:1px solid #1a1a1a;">Status</th>
+                        <th style="background:#0d0d0d; padding:10px 16px; font-size:10px; letter-spacing:.08em; color:#444; font-weight:700; border-bottom:1px solid #1a1a1a;"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in rondas[:5] %}
+                    <tr style="border-bottom:{% if not loop.last %}1px solid #141414{% else %}none{% endif %};">
+                        <td style="padding:12px 16px; color:#444; font-size:11px;">{{ r.id }}</td>
+                        <td style="padding:12px 16px; color:#ccc; font-weight:600;">{{ r.monitor_nome }}</td>
+                        <td style="padding:12px 16px; color:#666; font-size:12px; white-space:nowrap;">{{ r.iniciada_em.strftime('%Y-%m-%d %H:%M') if r.iniciada_em else '' }}</td>
+                        <td style="padding:12px 16px; color:#666; font-size:12px; white-space:nowrap;">{{ r.finalizada_em.strftime('%Y-%m-%d %H:%M') if r.finalizada_em else '—' }}</td>
+                        <td style="padding:12px 16px;">
+                            {% if r.status == 'finalizada' %}
+                                <span style="font-size:10px; font-weight:700; letter-spacing:.05em;
+                                             color:#6ee7a0; background:rgba(110,231,160,.1);
+                                             padding:3px 8px; border-radius:4px;">FINALIZADA</span>
+                            {% elif r.status == 'com_alertas' %}
+                                <span style="font-size:10px; font-weight:700; letter-spacing:.05em;
+                                             color:#f87171; background:rgba(248,113,113,.1);
+                                             padding:3px 8px; border-radius:4px;">COM ALERTAS</span>
+                            {% elif r.status == 'em_andamento' %}
+                                <span style="font-size:10px; font-weight:700; letter-spacing:.05em;
+                                             color:#f5c400; background:rgba(245,196,0,.1);
+                                             padding:3px 8px; border-radius:4px;">EM ANDAMENTO</span>
+                            {% else %}
+                                <span style="font-size:10px; font-weight:700; letter-spacing:.05em;
+                                             color:#555; background:rgba(85,85,85,.1);
+                                             padding:3px 8px; border-radius:4px;">{{ r.status | upper }}</span>
+                            {% endif %}
+                        </td>
+                        <td style="padding:12px 16px;">
+                            {% if r.status != 'em_andamento' %}
+                            <a href="{{ url_for('rondas.ver_relatorio_multi', ronda_id=r.id) }}"
+                               style="font-size:11px; font-weight:700; color:#f5c400; text-decoration:none;
+                                      padding:4px 10px; border:1px solid rgba(245,196,0,.3);
+                                      border-radius:5px; transition:background .15s;"
+                               onmouseover="this.style.background='rgba(245,196,0,.1)'"
+                               onmouseout="this.style.background='transparent'">Ver</a>
+                            {% else %}
+                            <span style="font-size:11px; color:#333;">—</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            {% else %}
+            <p style="color:#444; font-size:13px; text-align:center; padding:2rem;">Nenhuma ronda registrada.</p>
+            {% endif %}
+            <div style="padding:10px 16px; border-top:1px solid #141414; text-align:right;">
+                <a href="{{ url_for('rondas.historico') }}"
+                   style="font-size:11px; color:#555; text-decoration:none; letter-spacing:.04em;">
+                    Ver historico completo &rarr;
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script>
+function atualizarHora() {
+    const el = document.getElementById('hora-atual');
+    if (el) el.textContent = new Date().toLocaleString('pt-BR');
+}
+atualizarHora();
+setInterval(atualizarHora, 1000);
+
+new Chart(document.getElementById('chart-det'), {
+    type: 'bar',
+    data: {
+        labels: {{ kpi.grafico_labels | tojson }},
+        datasets: [{
+            data: {{ kpi.grafico_valores | tojson }},
+            backgroundColor: 'rgba(245,196,0,0.15)',
+            borderColor: 'rgba(245,196,0,0.6)',
+            borderWidth: 1,
+            borderRadius: 3,
+            hoverBackgroundColor: 'rgba(245,196,0,0.3)',
+        }]
+    },
+    options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+            tooltip: {
+                backgroundColor: '#111',
+                titleColor: '#f5c400',
+                bodyColor: '#888',
+                borderColor: '#222',
+                borderWidth: 1,
+                callbacks: { title: i => i[0].label, label: i => ' ' + i.raw + ' deteccao(es)' }
+            }
+        },
+        scales: {
+            x: { ticks: { color: '#444', font: { size: 10 } }, grid: { color: '#141414' } },
+            y: { beginAtZero: true, ticks: { color: '#444', stepSize: 1, font: { size: 10 } }, grid: { color: '#141414' } }
+        }
+    }
+});
+</script>
+
+{% endblock %}

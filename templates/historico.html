@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% block title %}Histórico — Ronda Automatizada{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Histórico de Rondas</h1>
+</div>
+
+<div class="card">
+    <div class="card-title">Todas as Rondas</div>
+
+    {% if rondas %}
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Monitor</th>
+                <th>Turno</th>
+                <th>Iniciada em</th>
+                <th>Finalizada em</th>
+                <th>Status</th>
+                <th>Relatório</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for r in rondas %}
+            <tr>
+                <td style="color: #666; font-size: 12px;">{{ r.id }}</td>
+                <td style="font-weight: 600;">{{ r.monitor_nome }}</td>
+                <td>{{ r.turno }}</td>
+                <td>{{ r.iniciada_em }}</td>
+                <td>{{ r.finalizada_em or '—' }}</td>
+                <td>
+                    {% if r.status == 'finalizada' %}
+                        <span class="badge badge-success">Finalizada</span>
+                    {% elif r.status == 'com_alertas' %}
+                        <span class="badge badge-danger">⚠️ Com Alertas</span>
+                    {% elif r.status == 'em_andamento' %}
+                        <span class="badge badge-warning">Em andamento</span>
+                    {% else %}
+                        <span class="badge badge-danger">Erro</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if r.status != 'em_andamento' %}
+                    <a href="{{ url_for('rondas.ver_relatorio_multi', ronda_id=r.id) }}"
+                       class="btn btn-primary btn-sm">Ver</a>
+                    {% else %}
+                    <span style="font-size: 12px; color: #666;">Aguardando...</span>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p style="color: #888; font-size: 14px; text-align: center; padding: 2rem 0;">
+        Nenhuma ronda registrada ainda.
+    </p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,416 @@
+{% extends "base.html" %}
+{% block title %}Envio de Relatórios por E-mail — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>📧 Envio de Relatórios por E-mail</h1>
+</div>
+
+<div style="display:grid; grid-template-columns:340px 1fr; gap:1.5rem; align-items:start;">
+
+    <!-- FILTROS -->
+    <div class="card" style="position:sticky; top:1rem;">
+        <div class="card-title">🔍 Filtrar Relatórios</div>
+
+        <div class="form-group">
+            <label>Período</label>
+            <select id="f-periodo" onchange="ajustarPeriodo()">
+                <option value="hoje">Hoje</option>
+                <option value="7d">Últimos 7 dias</option>
+                <option value="30d">Últimos 30 dias</option>
+                <option value="custom">Personalizado</option>
+            </select>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+            <div class="form-group">
+                <label>De</label>
+                <input type="date" id="f-data-ini">
+            </div>
+            <div class="form-group">
+                <label>Até</label>
+                <input type="date" id="f-data-fim">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Turno</label>
+            <select id="f-turno">
+                <option value="">Todos os turnos</option>
+                <option value="Diurno">Diurno</option>
+                <option value="Noturno">Noturno</option>
+                <option value="Administrativo">Administrativo</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Monitor</label>
+            <select id="f-monitor">
+                <option value="">Todos os monitores</option>
+                {% for m in monitores %}
+                <option value="{{ m.nome }}">{{ m.nome }}</option>
+                {% endfor %}
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>Status da Ronda</label>
+            <select id="f-status">
+                <option value="">Todos</option>
+                <option value="finalizado">Finalizado</option>
+                <option value="em_andamento">Em andamento</option>
+                <option value="erro">Com erro</option>
+            </select>
+        </div>
+
+        <button onclick="buscarRondas()" class="btn btn-primary" style="width:100%; margin-top:4px;">
+            🔍 Buscar Relatórios
+        </button>
+        <button onclick="limparFiltros()" class="btn" style="width:100%; margin-top:8px; background:transparent; border:1px solid #444; color:#aaa;">
+            ✕ Limpar filtros
+        </button>
+
+        <hr style="margin:1.2rem 0; border:none; border-top:1px solid #333;">
+
+        <!-- DESTINATÁRIOS -->
+        <div class="card-title" style="margin-bottom:.8rem;">📬 Destinatários</div>
+        <div class="form-group">
+            <label>E-mails <small style="color:#aaa; text-transform:none;">(separados por vírgula)</small></label>
+            <textarea id="email-destinatarios" rows="3"
+                style="width:100%; background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1);
+                border-radius:8px; color:#fff; font-size:13px; padding:10px; resize:vertical; font-family:inherit;"
+                placeholder="supervisor@empresa.com,&#10;gerente@empresa.com"></textarea>
+        </div>
+
+        <div id="sel-count" style="font-size:12px; color:#aaa; margin-bottom:10px; min-height:18px;"></div>
+
+        <button onclick="enviarSelecionados()" class="btn btn-success" style="width:100%;">
+            📤 Enviar Selecionados
+        </button>
+
+        <div id="resultado-envio" style="display:none; margin-top:10px; font-size:13px; padding:10px 14px;
+             border-radius:8px; border-left:4px solid;"></div>
+    </div>
+
+    <!-- TABELA DE RESULTADOS -->
+    <div class="card" style="padding:0; overflow:hidden;">
+        <div style="padding:16px 20px; border-bottom:1px solid rgba(255,255,255,0.07);
+             display:flex; align-items:center; justify-content:space-between;">
+            <div class="card-title" style="margin:0;">📋 Relatórios Encontrados</div>
+            <div style="display:flex; align-items:center; gap:10px;">
+                <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:#aaa; cursor:pointer; text-transform:none; letter-spacing:0;">
+                    <input type="checkbox" id="chk-all" onchange="toggleTodos(this)"
+                           style="accent-color:var(--gold); width:14px; height:14px;">
+                    Selecionar todos
+                </label>
+                <span id="total-label" style="font-size:12px; color:#aaa;"></span>
+            </div>
+        </div>
+
+        <div id="tabela-wrap">
+            <div id="estado-inicial" style="padding:60px 20px; text-align:center; color:#555;">
+                <div style="font-size:36px; margin-bottom:12px; opacity:.4;">📂</div>
+                <p style="font-size:14px;">Use os filtros ao lado para buscar relatórios.</p>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL PREVIEW -->
+<div id="preview-overlay" style="display:none; position:fixed; inset:0;
+     background:rgba(0,0,0,0.8); z-index:8000; align-items:center; justify-content:center;">
+    <div style="background:#fff; width:92%; max-width:980px; height:88vh;
+         border-radius:10px; overflow:hidden; display:flex; flex-direction:column;
+         box-shadow:0 24px 60px rgba(0,0,0,.6);">
+        <div style="background:#111; padding:12px 18px; display:flex;
+             justify-content:space-between; align-items:center; gap:12px;">
+            <span style="color:#fff; font-weight:700; font-size:14px;" id="preview-titulo">👁 Preview do Relatório</span>
+            <div style="display:flex; gap:8px;">
+                <button onclick="enviarPreviewAtual()"
+                    style="height:32px; padding:0 14px; background:var(--gold); border:none; border-radius:6px;
+                    color:#111; font-size:13px; font-weight:700; cursor:pointer;">
+                    📤 Enviar este
+                </button>
+                <button onclick="fecharPreview()"
+                    style="background:none; border:1px solid #444; color:#aaa; border-radius:6px;
+                    padding:0 12px; height:32px; font-size:13px; cursor:pointer;">✕ Fechar</button>
+            </div>
+        </div>
+        <iframe id="preview-frame" style="flex:1; border:none; width:100%;"></iframe>
+    </div>
+</div>
+
+<style>
+.ronda-row {
+    display:grid;
+    grid-template-columns:36px 60px 1fr 120px 110px 100px 130px;
+    align-items:center;
+    gap:10px;
+    padding:11px 20px;
+    border-bottom:1px solid rgba(255,255,255,0.05);
+    transition:background .12s;
+    font-size:13px;
+}
+.ronda-row:hover { background:rgba(255,255,255,0.03); }
+.ronda-row.selected { background:rgba(245,196,0,0.06); }
+.ronda-header {
+    background:rgba(255,255,255,0.03);
+    font-size:11px;
+    font-weight:700;
+    color:#666;
+    text-transform:uppercase;
+    letter-spacing:.06em;
+    border-bottom:1px solid rgba(255,255,255,0.08);
+}
+.badge-status {
+    display:inline-block; padding:2px 8px; border-radius:20px;
+    font-size:11px; font-weight:600; white-space:nowrap;
+}
+.st-fin  { background:rgba(25,135,84,.15);  color:#28a745; border:1px solid rgba(25,135,84,.3); }
+.st-and  { background:rgba(13,110,253,.12); color:#4d9cf5; border:1px solid rgba(13,110,253,.3); }
+.st-err  { background:rgba(220,53,69,.12);  color:#dc3545; border:1px solid rgba(220,53,69,.3); }
+.btn-row {
+    height:26px; padding:0 10px; border-radius:5px; border:1px solid rgba(255,255,255,0.12);
+    background:rgba(255,255,255,0.05); color:#ccc; font-size:11px; cursor:pointer;
+    display:inline-flex; align-items:center; gap:4px; transition:all .15s; white-space:nowrap;
+}
+.btn-row:hover { border-color:var(--gold); color:var(--gold); }
+.btn-row.enviar:hover { border-color:#28a745; color:#28a745; }
+</style>
+
+<script>
+let rondasEncontradas = [];
+let previewAtualId = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    ajustarPeriodo();
+    buscarRondas();
+});
+
+function ajustarPeriodo() {
+    const v = document.getElementById('f-periodo').value;
+    const hoje = new Date(), fmt = d => d.toISOString().slice(0,10);
+    const ini = document.getElementById('f-data-ini');
+    const fim = document.getElementById('f-data-fim');
+    fim.value = fmt(hoje);
+    if (v === 'hoje') ini.value = fmt(hoje);
+    else if (v === '7d') { const d = new Date(hoje); d.setDate(d.getDate()-6); ini.value = fmt(d); }
+    else if (v === '30d') { const d = new Date(hoje); d.setDate(d.getDate()-29); ini.value = fmt(d); }
+    ini.disabled = fim.disabled = (v !== 'custom');
+}
+
+function limparFiltros() {
+    document.getElementById('f-turno').value = '';
+    document.getElementById('f-monitor').value = '';
+    document.getElementById('f-status').value = '';
+    document.getElementById('f-periodo').value = 'hoje';
+    ajustarPeriodo();
+    buscarRondas();
+}
+
+async function buscarRondas() {
+    const params = new URLSearchParams({
+        data_ini:  document.getElementById('f-data-ini').value,
+        data_fim:  document.getElementById('f-data-fim').value,
+        turno:     document.getElementById('f-turno').value,
+        monitor:   document.getElementById('f-monitor').value,
+        status:    document.getElementById('f-status').value,
+    });
+
+    const wrap = document.getElementById('tabela-wrap');
+    wrap.innerHTML = '<div style="padding:40px; text-align:center; color:#555; font-size:13px;">⏳ Buscando...</div>';
+
+    try {
+        const r = await fetch('/api/email/rondas?' + params);
+        const d = await r.json();
+        rondasEncontradas = d.rondas || [];
+        renderTabela(rondasEncontradas);
+    } catch(e) {
+        wrap.innerHTML = `<div style="padding:40px; text-align:center; color:#dc3545; font-size:13px;">❌ Erro: ${e.message}</div>`;
+    }
+}
+
+function renderTabela(rondas) {
+    const wrap = document.getElementById('tabela-wrap');
+    document.getElementById('total-label').textContent = `${rondas.length} registro(s)`;
+    document.getElementById('chk-all').checked = false;
+    atualizarContador();
+
+    if (!rondas.length) {
+        wrap.innerHTML = '<div style="padding:60px 20px; text-align:center; color:#555;"><div style="font-size:36px;margin-bottom:12px;opacity:.4;">🔍</div><p style="font-size:14px;">Nenhum relatório encontrado com os filtros aplicados.</p></div>';
+        return;
+    }
+
+    const stMap = {
+        finalizado:   ['st-fin', '✅ Finalizado'],
+        em_andamento: ['st-and', '⏳ Em andamento'],
+        erro:         ['st-err', '❌ Com erro'],
+    };
+
+    let html = `
+    <div class="ronda-row ronda-header">
+        <span></span>
+        <span>ID</span>
+        <span>Monitor / Turno</span>
+        <span>Data/Hora</span>
+        <span>Status</span>
+        <span>Duração</span>
+        <span>Ações</span>
+    </div>`;
+
+    rondas.forEach(r => {
+        const [sc, sl] = stMap[r.status] || ['st-err', r.status];
+        const hora = r.iniciada_em ? r.iniciada_em.slice(0,16).replace('T',' ') : '—';
+        const dur = calcDuracao(r.iniciada_em, r.finalizada_em);
+        html += `
+        <div class="ronda-row" id="row-${r.id}" onclick="toggleRow(${r.id})">
+            <div onclick="event.stopPropagation()">
+                <input type="checkbox" class="row-chk" data-id="${r.id}"
+                    style="accent-color:var(--gold); width:14px; height:14px;"
+                    onchange="atualizarContador()">
+            </div>
+            <span style="font-family:monospace; color:#aaa;">#${r.id}</span>
+            <div>
+                <div style="font-weight:600; color:#e0e0e0;">${r.monitor_nome}</div>
+                <div style="font-size:11px; color:#666; margin-top:2px;">🕐 ${r.turno}</div>
+            </div>
+            <span style="font-size:12px; color:#bbb;">${hora}</span>
+            <span><span class="badge-status ${sc}">${sl}</span></span>
+            <span style="font-size:12px; color:#888;">${dur}</span>
+            <div style="display:flex; gap:5px;" onclick="event.stopPropagation()">
+                <button class="btn-row" onclick="verPreview(${r.id}, '${r.monitor_nome} #${r.id}')">👁 Ver</button>
+                <button class="btn-row enviar" onclick="enviarUnico(${r.id})">📤 Enviar</button>
+            </div>
+        </div>`;
+    });
+
+    wrap.innerHTML = html;
+}
+
+function calcDuracao(ini, fim) {
+    if (!ini || !fim) return '—';
+    try {
+        const diff = Math.floor((new Date(fim) - new Date(ini)) / 1000);
+        const h = Math.floor(diff / 3600), m = Math.floor((diff % 3600) / 60);
+        return h > 0 ? `${h}h ${m}min` : `${m}min`;
+    } catch { return '—'; }
+}
+
+function toggleRow(id) {
+    const chk = document.querySelector(`.row-chk[data-id="${id}"]`);
+    if (chk) { chk.checked = !chk.checked; atualizarContador(); }
+    const row = document.getElementById(`row-${id}`);
+    if (row) row.classList.toggle('selected', chk.checked);
+}
+
+function toggleTodos(el) {
+    document.querySelectorAll('.row-chk').forEach(c => {
+        c.checked = el.checked;
+        const row = document.getElementById(`row-${c.dataset.id}`);
+        if (row) row.classList.toggle('selected', el.checked);
+    });
+    atualizarContador();
+}
+
+function atualizarContador() {
+    const n = document.querySelectorAll('.row-chk:checked').length;
+    document.getElementById('sel-count').textContent =
+        n > 0 ? `✅ ${n} relatório(s) selecionado(s)` : '';
+}
+
+function getSelecionados() {
+    return [...document.querySelectorAll('.row-chk:checked')].map(c => parseInt(c.dataset.id));
+}
+
+function getDestinatarios() {
+    return document.getElementById('email-destinatarios').value
+        .split(/[,\n]/).map(s => s.trim()).filter(Boolean);
+}
+
+async function enviarUnico(id) {
+    const dests = getDestinatarios();
+    if (!dests.length) { toast('Informe ao menos um destinatário.', 'error'); return; }
+    await enviarRelatorios([id], dests);
+}
+
+async function enviarSelecionados() {
+    const ids = getSelecionados();
+    if (!ids.length) { toast('Selecione ao menos um relatório.', 'error'); return; }
+    const dests = getDestinatarios();
+    if (!dests.length) { toast('Informe ao menos um destinatário.', 'error'); return; }
+    await enviarRelatorios(ids, dests);
+}
+
+async function enviarRelatorios(ids, destinatarios) {
+    const el = document.getElementById('resultado-envio');
+    el.style.display = 'block';
+    el.style.borderColor = '#555';
+    el.style.color = '#aaa';
+    el.innerHTML = `⏳ Enviando ${ids.length} relatório(s)...`;
+
+    let ok = 0, erros = [];
+    for (const id of ids) {
+        try {
+            const r = await fetch('/api/email/enviar-relatorio', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({ronda_id: id, destinatarios}),
+            }).then(r => r.json());
+            if (r.ok) ok++; else erros.push(`#${id}: ${r.erro}`);
+        } catch(e) { erros.push(`#${id}: ${e.message}`); }
+    }
+
+    if (!erros.length) {
+        el.style.borderColor = '#28a745';
+        el.style.color = '#28a745';
+        el.innerHTML = `✅ ${ok} relatório(s) enviado(s) com sucesso!`;
+        toast(`✅ ${ok} relatório(s) enviado(s)!`, 'ok');
+    } else {
+        el.style.borderColor = '#dc3545';
+        el.style.color = '#dc3545';
+        el.innerHTML = `⚠️ ${ok} enviado(s). Erros:<br>${erros.join('<br>')}`;
+    }
+}
+
+function verPreview(id, titulo) {
+    previewAtualId = id;
+    document.getElementById('preview-titulo').textContent = `👁 Preview — ${titulo}`;
+    document.getElementById('preview-frame').src = `/api/email/preview/${id}`;
+    document.getElementById('preview-overlay').style.display = 'flex';
+}
+
+function fecharPreview() {
+    document.getElementById('preview-overlay').style.display = 'none';
+    document.getElementById('preview-frame').src = '';
+    previewAtualId = null;
+}
+
+async function enviarPreviewAtual() {
+    if (!previewAtualId) return;
+    const dests = getDestinatarios();
+    if (!dests.length) { toast('Informe destinatários no painel de filtros.', 'error'); return; }
+    fecharPreview();
+    await enviarRelatorios([previewAtualId], dests);
+}
+
+function toast(msg, tipo) {
+    let ct = document.getElementById('toast-ct');
+    if (!ct) {
+        ct = document.createElement('div');
+        ct.id = 'toast-ct';
+        ct.style.cssText = 'position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9000;';
+        document.body.appendChild(ct);
+    }
+    const el = document.createElement('div');
+    el.style.cssText = `font-size:13px;padding:12px 18px;border-radius:8px;background:#1e1e1e;
+        box-shadow:0 8px 32px rgba(0,0,0,.5);
+        border-left:4px solid ${tipo==='ok'?'#28a745':'#dc3545'};
+        color:${tipo==='ok'?'#4ade80':'#f87171'};max-width:340px;`;
+    el.textContent = msg;
+    ct.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharPreview(); });
+</script>
+{% endblock %}

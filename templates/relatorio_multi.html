@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% block title %}Relatório #{{ ronda.id }} — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Relatório de Ronda #{{ ronda.id }}</h1>
+    <a href="{{ url_for('rondas.historico') }}" class="btn btn-primary btn-sm">← Voltar</a>
+</div>
+
+<!-- INFORMAÇÕES DA RONDA -->
+<div class="card">
+    <div class="card-title">Informações da Ronda</div>
+    <table style="width: auto;">
+        <tr>
+            <td style="font-weight:600; padding-right:2rem; color:#888; font-size:13px;">Monitor</td>
+            <td style="font-weight:700; font-size:15px;">{{ ronda.monitor_nome }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight:600; color:#888; font-size:13px;">Turno</td>
+            <td>{{ ronda.turno }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight:600; color:#888; font-size:13px;">Iniciada em</td>
+            <td>{{ ronda.iniciada_em }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight:600; color:#888; font-size:13px;">Finalizada em</td>
+            <td>{{ ronda.finalizada_em or '—' }}</td>
+        </tr>
+        <tr>
+            <td style="font-weight:600; color:#888; font-size:13px;">Status</td>
+            <td>
+                {% if ronda.status == 'finalizada' %}
+                    <span class="badge badge-success">Finalizada</span>
+                {% elif ronda.status == 'com_alertas' %}
+                    <span class="badge badge-danger">⚠️ Com Alertas</span>
+                {% elif ronda.status == 'em_andamento' %}
+                    <span class="badge badge-warning">Em andamento</span>
+                {% else %}
+                    <span class="badge badge-danger">Erro</span>
+                {% endif %}
+            </td>
+        </tr>
+    </table>
+</div>
+
+{% if dados %}
+
+    <!-- ── RONDA MULTI-NVR ── -->
+    {% if dados.nvrs is defined %}
+
+        {% set total_invasoes = namespace(v=0) %}
+        {% for nvr in dados.nvrs %}{% set total_invasoes.v = total_invasoes.v + nvr.invasoes %}{% endfor %}
+
+        {% if total_invasoes.v > 0 %}
+        <div style="background:rgba(220,53,69,0.15); border:1px solid rgba(220,53,69,0.3); border-radius:8px;
+                    padding:10px 16px; margin-bottom:1rem; color:#f88; font-size:14px;">
+            ⚠️ <strong>{{ total_invasoes.v }} detecção(ões) em {{ dados.nvrs|length }} NVR(s)</strong>
+        </div>
+        {% else %}
+        <div style="background:rgba(25,135,84,0.15); border:1px solid rgba(25,135,84,0.3); border-radius:8px;
+                    padding:10px 16px; margin-bottom:1rem; color:#6ee7a0; font-size:14px;">
+            ✅ <strong>Ronda concluída sem detecções em todos os NVRs</strong>
+        </div>
+        {% endif %}
+
+        {% for nvr in dados.nvrs %}
+        <div class="card" style="margin-bottom:1.5rem;">
+
+            <div style="display:flex; justify-content:space-between; align-items:center;
+                        margin-bottom:1rem; padding-bottom:0.75rem; border-bottom:2px solid #f5c400;">
+                <div>
+                    <span style="font-size:16px; font-weight:700; color:#fff;">📷 {{ nvr.nome }}</span>
+                    <span style="font-size:12px; color:#888; margin-left:10px;">{{ nvr.ip }}</span>
+                </div>
+                <div>
+                    {% if nvr.erro %}
+                        <span class="badge badge-danger">❌ Erro</span>
+                    {% elif nvr.invasoes > 0 %}
+                        <span class="badge badge-danger">⚠️ {{ nvr.invasoes }} invasão(ões)</span>
+                    {% else %}
+                        <span class="badge badge-success">✅ Normal</span>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if nvr.erro %}
+                <p style="color:#dc3545; font-size:14px;">Falha: {{ nvr.erro }}</p>
+            {% elif nvr.linhas %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Horário</th>
+                            <th>Local</th>
+                            <th>Status</th>
+                            <th>Pessoas</th>
+                            <th>Imagem</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for linha in nvr.linhas %}
+                        <tr>
+                            <td style="font-size:13px; color:#888; white-space:nowrap;">{{ linha.horario }}</td>
+                            <td style="font-weight:600;">{{ linha.nome_local }}</td>
+                            <td>
+                                {% if linha.pessoas > 0 %}
+                                    <span class="badge badge-danger">⚠️ INVASÃO</span>
+                                {% else %}
+                                    <span class="badge badge-success">✅ NORMAL</span>
+                                {% endif %}
+                            </td>
+                            <td style="text-align:center;">
+                                {% if linha.pessoas > 0 %}
+                                    <strong style="color:#dc3545;">{{ linha.pessoas }}</strong>
+                                {% else %}
+                                    <span style="color:#888;">0</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <img src="/relatorios/{{ pasta_name }}/{{ nvr.id }}/imagens/{{ linha.nome_local }}.jpg"
+                                     style="width:300px; border-radius:6px; border:1px solid #2a2a2a;"
+                                     onerror="this.style.display='none'">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                <div style="padding:10px 0 0; font-size:13px; color:#888;
+                            border-top:1px solid #1e1e1e; margin-top:0.5rem;">
+                    Presets: <strong>{{ nvr.linhas|length }}</strong> &nbsp;|&nbsp;
+                    Invasões: <strong {% if nvr.invasoes > 0 %}style="color:#dc3545"{% endif %}>{{ nvr.invasoes }}</strong> &nbsp;|&nbsp;
+                    Duração: <strong>{{ nvr.duracao_s }}s</strong>
+                </div>
+            {% else %}
+                <p style="color:#888; font-size:14px;">Nenhum dado para este NVR.</p>
+            {% endif %}
+
+        </div>
+        {% endfor %}
+
+    <!-- ── RONDA SIMPLES (1 NVR) ── -->
+    {% else %}
+
+        {% set total_invasoes = namespace(v=0) %}
+        {% for l in dados.linhas %}{% if l.pessoas > 0 %}{% set total_invasoes.v = total_invasoes.v + l.pessoas %}{% endif %}{% endfor %}
+
+        {% if total_invasoes.v > 0 %}
+        <div style="background:rgba(220,53,69,0.15); border:1px solid rgba(220,53,69,0.3); border-radius:8px;
+                    padding:10px 16px; margin-bottom:1rem; color:#f88; font-size:14px;">
+            ⚠️ <strong>{{ total_invasoes.v }} pessoa(s) detectada(s)</strong>
+        </div>
+        {% else %}
+        <div style="background:rgba(25,135,84,0.15); border:1px solid rgba(25,135,84,0.3); border-radius:8px;
+                    padding:10px 16px; margin-bottom:1rem; color:#6ee7a0; font-size:14px;">
+            ✅ <strong>Ronda concluída sem detecções</strong>
+        </div>
+        {% endif %}
+
+        <div class="card">
+            <div class="card-title">Resultado da Ronda</div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Horário</th>
+                        <th>Local</th>
+                        <th>Status</th>
+                        <th>Pessoas</th>
+                        <th>Imagem</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for linha in dados.linhas %}
+                    <tr>
+                        <td style="font-size:13px; color:#888; white-space:nowrap;">{{ linha.horario }}</td>
+                        <td style="font-weight:600;">{{ linha.nome_local }}</td>
+                        <td>
+                            {% if linha.pessoas > 0 %}
+                                <span class="badge badge-danger">⚠️ INVASÃO</span>
+                            {% else %}
+                                <span class="badge badge-success">✅ NORMAL</span>
+                            {% endif %}
+                        </td>
+                        <td style="text-align:center;">
+                            {% if linha.pessoas > 0 %}
+                                <strong style="color:#dc3545;">{{ linha.pessoas }}</strong>
+                            {% else %}
+                                <span style="color:#888;">0</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <img src="{{ img_prefix }}{{ linha.nome_local }}.jpg"
+                                 style="width:300px; border-radius:6px; border:1px solid #2a2a2a;"
+                                 onerror="this.style.display='none'">
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+    {% endif %}
+
+{% else %}
+<div class="card">
+    <p style="color:#888; font-size:14px; text-align:center; padding:2rem 0;">
+        Relatório ainda não disponível. A ronda pode estar em andamento.
+    </p>
+</div>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}NVRs Monitorados — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>NVRs Monitorados</h1>
+    <div style="display:flex; gap:8px;">
+        <a href="{{ url_for('conferencia.nvrs_importar') }}" class="btn btn-secondary btn-sm">↑ Importar CSV</a>
+        <a href="{{ url_for('conferencia.nvrs_novo') }}" class="btn btn-success">+ Adicionar NVR</a>
+    </div>
+</div>
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+{% if messages %}
+<div style="margin-bottom:1rem;">
+    {% for cat, msg in messages %}
+    <div class="alert alert-{{ cat }}" style="margin-bottom:.5rem;">{{ msg }}</div>
+    {% endfor %}
+</div>
+{% endif %}
+{% endwith %}
+
+{% if migrados is defined and migrados > 0 %}
+<div class="alert alert-info">
+    {{ migrados }} PTZ(s) importadas automaticamente da planilha.
+</div>
+{% endif %}
+
+{% if not nvrs %}
+<div class="card" style="text-align: center; padding: 3rem;">
+    <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 1rem;">Nenhum NVR cadastrado ainda.</div>
+    <div style="display:flex; gap:10px; justify-content:center;">
+        <a href="{{ url_for('conferencia.nvrs_importar') }}" class="btn btn-secondary">↑ Importar CSV em lote</a>
+        <a href="{{ url_for('conferencia.nvrs_novo') }}" class="btn btn-success">+ Cadastrar manualmente</a>
+    </div>
+</div>
+{% else %}
+
+<div style="background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;">
+
+    <!-- Cabeçalho da tabela -->
+    <div style="display:grid; grid-template-columns:160px 1fr 120px 80px 100px 120px;
+                background: rgba(245,196,0,0.04); padding:10px 16px; gap:12px;
+                border-bottom: 1px solid var(--border);">
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--text-muted);">ID</div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--text-muted);">NOME / IP</div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--text-muted);">PORTA</div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--text-muted);">HTTPS</div>
+        <div style="font-size:10px; font-weight:700; letter-spacing:.1em; color:var(--text-muted);">STATUS</div>
+        <div></div>
+    </div>
+
+    {% for nvr in nvrs %}
+    <div style="display:grid; grid-template-columns:160px 1fr 120px 80px 100px 120px;
+                padding:14px 16px; gap:12px; align-items:center;
+                border-bottom: 1px solid rgba(255,255,255,0.04);
+                transition: background 0.15s;
+                {% if not nvr.ativo %}opacity:.5;{% endif %}"
+         onmouseover="this.style.background='rgba(245,196,0,0.03)'"
+         onmouseout="this.style.background='transparent'">
+
+        <div style="font-family:monospace; font-size:11px; color:var(--text-muted); word-break:break-all;">
+            {{ nvr.nvr_id }}
+        </div>
+
+        <div>
+            <div style="font-size:13px; font-weight:700; color:#fff;">{{ nvr.nome }}</div>
+            <div style="font-size:11px; color:var(--text-muted); margin-top:2px; font-family:monospace;">
+                {{ nvr.ip }}
+            </div>
+            {% if nvr.site %}
+            <div style="font-size:10px; color:var(--text-dim); margin-top:2px;">🏭 {{ nvr.site }}</div>
+            {% endif %}
+        </div>
+
+        <div style="font-size:12px; color:var(--text-muted); font-family:monospace;">
+            :{{ nvr.porta }}
+        </div>
+
+        <div>
+            {% if nvr.use_https %}
+            <span style="font-size:10px; font-weight:700; color:var(--green);
+                         background:var(--green-soft); border-radius:4px; padding:2px 6px;">HTTPS</span>
+            {% else %}
+            <span style="font-size:10px; color:var(--text-dim);">HTTP</span>
+            {% endif %}
+        </div>
+
+        <div>
+            {% if nvr.ativo %}
+            <span class="badge badge-success">ATIVO</span>
+            {% else %}
+            <span class="badge badge-secondary">INATIVO</span>
+            {% endif %}
+        </div>
+
+        <div style="display:flex; gap:6px;">
+            <a href="{{ url_for('conferencia.nvrs_editar', nvr_id=nvr.nvr_id) }}"
+               class="btn btn-primary btn-sm">Editar</a>
+            <form method="POST" action="{{ url_for('conferencia.nvrs_toggle', nvr_id=nvr.nvr_id) }}"
+                  style="margin:0;">
+                <button type="submit" class="btn btn-secondary btn-sm">
+                    {{ 'Desativar' if nvr.ativo else 'Ativar' }}
+                </button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
+
+</div>
+
+<div style="margin-top:.75rem; font-size:11px; color:var(--text-dim);">
+    {{ nvrs|length }} NVR(s) cadastrado(s) —
+    {{ nvrs|selectattr('ativo')|list|length }} ativo(s)
+</div>
+
+{% endif %}
+{% endblock %}

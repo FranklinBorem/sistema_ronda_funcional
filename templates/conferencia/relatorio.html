@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Relatório de Monitoramento — Grupo Ronda{% endblock %}
+
+{% block extra_css %}
+<style>
+  .rel-wrap { max-width: 680px; margin: 0 auto; padding: 2rem 1rem; }
+
+  .rel-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px; font-weight: 800;
+    color: var(--text); text-transform: uppercase; letter-spacing: .06em;
+    display: flex; align-items: center; gap: 8px; margin-bottom: .3rem;
+  }
+  .rel-title::before {
+    content: ''; width: 3px; height: 20px;
+    background: var(--gold); border-radius: 2px;
+  }
+  .rel-sub { font-size: 12px; color: var(--text-3); margin-bottom: 2rem; }
+
+  .rel-card {
+    background: var(--bg-2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.5rem; margin-bottom: 1rem;
+  }
+  .rel-card-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px; font-weight: 700; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-3);
+    margin-bottom: 1rem; padding-bottom: .6rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .date-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  .form-group label {
+    display: block; font-size: 11px; font-weight: 700;
+    color: var(--text-3); text-transform: uppercase;
+    letter-spacing: .06em; margin-bottom: 5px;
+  }
+  .form-group input[type=datetime-local] {
+    width: 100%; background: var(--bg-3);
+    border: 1px solid var(--border); border-radius: 7px;
+    color: var(--text); padding: 9px 12px; font-size: 13px;
+    font-family: 'DM Sans', sans-serif; outline: none;
+    transition: border-color .15s;
+    color-scheme: dark;
+  }
+  .form-group input:focus {
+    border-color: rgba(245,196,0,.5);
+  }
+
+  /* Atalhos de período */
+  .atalhos {
+    display: flex; flex-wrap: wrap; gap: .4rem; margin-bottom: 1rem;
+  }
+  .atalho {
+    font-size: 11px; font-weight: 600;
+    background: var(--bg-3); border: 1px solid var(--border);
+    border-radius: 5px; padding: 4px 10px; color: var(--text-2);
+    cursor: pointer; transition: all .12s;
+  }
+  .atalho:hover { background: var(--accent-dim); border-color: var(--gold); color: var(--gold); }
+
+  /* Formato */
+  .fmt-group { display: flex; gap: .75rem; margin-bottom: 1.5rem; }
+  .fmt-opt {
+    flex: 1; background: var(--bg-3); border: 2px solid var(--border);
+    border-radius: 8px; padding: .75rem; cursor: pointer;
+    text-align: center; transition: all .15s;
+  }
+  .fmt-opt:hover { border-color: rgba(245,196,0,.4); }
+  .fmt-opt.selected { border-color: var(--gold); background: var(--accent-dim); }
+  .fmt-opt input { display: none; }
+  .fmt-opt .ico { font-size: 22px; display: block; margin-bottom: 4px; }
+  .fmt-opt .lbl { font-size: 12px; font-weight: 700; color: var(--text); }
+  .fmt-opt .desc { font-size: 10px; color: var(--text-3); margin-top: 2px; }
+
+  /* Botão gerar */
+  .btn-gerar {
+    width: 100%; background: var(--gold); color: #111;
+    border: none; border-radius: 8px; padding: 12px;
+    font-weight: 800; font-size: 14px; letter-spacing: .05em;
+    text-transform: uppercase; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: all .15s;
+  }
+  .btn-gerar:hover { opacity: .9; box-shadow: 0 4px 16px rgba(245,196,0,.3); }
+  .btn-gerar:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-gerar .spin {
+    width: 16px; height: 16px;
+    border: 2px solid #0005; border-top-color: #000;
+    border-radius: 50%; animation: rg-spin .6s linear infinite; display: none;
+  }
+  .btn-gerar.loading .spin { display: block; }
+  @keyframes rg-spin { to { transform: rotate(360deg); } }
+
+  /* Mensagem de erro */
+  .msg-erro {
+    display: none; margin-top: .75rem; padding: .65rem 1rem;
+    background: rgba(239,68,68,.1); border: 1px solid rgba(239,68,68,.3);
+    border-radius: 7px; font-size: 12px; color: var(--red);
+  }
+  .msg-erro.vis { display: block; }
+
+  /* Info período */
+  .periodo-info {
+    font-size: 11px; color: var(--text-3); margin-top: .5rem;
+    text-align: center;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="rel-wrap">
+
+  <div class="rel-title">📊 Relatório de Monitoramento</div>
+  <div class="rel-sub">Gera relatório técnico de NVRs e câmeras monitorados no período selecionado</div>
+
+  <div class="rel-card">
+    <div class="rel-card-title">Período</div>
+
+    <!-- Atalhos rápidos -->
+    <div class="atalhos">
+      <span class="atalho" onclick="setPeriodo(1)">Últimas 24h</span>
+      <span class="atalho" onclick="setPeriodo(7)">Últimos 7 dias</span>
+      <span class="atalho" onclick="setPeriodo(15)">Últimos 15 dias</span>
+      <span class="atalho" onclick="setPeriodo(30)">Últimos 30 dias</span>
+      <span class="atalho" onclick="setHoje()">Hoje</span>
+      <span class="atalho" onclick="setSemanaAtual()">Semana atual</span>
+      <span class="atalho" onclick="setMesAtual()">Mês atual</span>
+    </div>
+
+    <div class="date-grid">
+      <div class="form-group">
+        <label>Data / Hora Início</label>
+        <input type="datetime-local" id="dtInicio" onchange="atualizarInfo()">
+      </div>
+      <div class="form-group">
+        <label>Data / Hora Fim</label>
+        <input type="datetime-local" id="dtFim" onchange="atualizarInfo()">
+      </div>
+    </div>
+
+    <div class="periodo-info" id="periodoInfo"></div>
+  </div>
+
+  <div class="rel-card">
+    <div class="rel-card-title">Formato de Saída</div>
+    <div class="fmt-group">
+      <label class="fmt-opt selected" onclick="selecionarFmt(this, 'pdf')">
+        <input type="radio" name="fmt" value="pdf" checked>
+        <span class="ico">📄</span>
+        <div class="lbl">PDF</div>
+        <div class="desc">Relatório formatado, papel timbrado Grupo Ronda</div>
+      </label>
+      <label class="fmt-opt" onclick="selecionarFmt(this, 'xlsx')">
+        <input type="radio" name="fmt" value="xlsx">
+        <span class="ico">📊</span>
+        <div class="lbl">Excel</div>
+        <div class="desc">Planilha com 4 abas: Resumo, NVRs, Eventos, Câmeras</div>
+      </label>
+    </div>
+
+    <button class="btn-gerar" id="btnGerar" onclick="gerarRelatorio()">
+      <span class="spin" id="btnSpin"></span>
+      <span id="btnTxt">⬇ Gerar e Baixar Relatório</span>
+    </button>
+    <div class="msg-erro" id="msgErro"></div>
+  </div>
+
+  <!-- Info sobre coleta -->
+  <div style="font-size:11px;color:var(--text-3);text-align:center;line-height:1.6;">
+    O relatório é gerado a partir dos dados coletados automaticamente a cada 5 minutos.<br>
+    Períodos sem dados indicam que o sistema estava offline ou o NVR não havia sido cadastrado.
+  </div>
+
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let fmtSelecionado = 'pdf';
+
+function selecionarFmt(el, fmt) {
+  document.querySelectorAll('.fmt-opt').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  fmtSelecionado = fmt;
+}
+
+function _toLocalInput(d) {
+  // Converte Date para string yyyy-MM-ddTHH:mm (fuso local)
+  const pad = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function setPeriodo(dias) {
+  const fim = new Date();
+  const ini = new Date(fim - dias * 86400000);
+  document.getElementById('dtInicio').value = _toLocalInput(ini);
+  document.getElementById('dtFim').value    = _toLocalInput(fim);
+  atualizarInfo();
+}
+
+function setHoje() {
+  const hoje = new Date();
+  const ini  = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate(), 0, 0);
+  document.getElementById('dtInicio').value = _toLocalInput(ini);
+  document.getElementById('dtFim').value    = _toLocalInput(hoje);
+  atualizarInfo();
+}
+
+function setSemanaAtual() {
+  const hoje = new Date();
+  const dow  = hoje.getDay() || 7;
+  const ini  = new Date(hoje);
+  ini.setDate(hoje.getDate() - dow + 1);
+  ini.setHours(0, 0, 0, 0);
+  document.getElementById('dtInicio').value = _toLocalInput(ini);
+  document.getElementById('dtFim').value    = _toLocalInput(hoje);
+  atualizarInfo();
+}
+
+function setMesAtual() {
+  const hoje = new Date();
+  const ini  = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('dtInicio').value = _toLocalInput(ini);
+  document.getElementById('dtFim').value    = _toLocalInput(hoje);
+  atualizarInfo();
+}
+
+function atualizarInfo() {
+  const ini = document.getElementById('dtInicio').value;
+  const fim = document.getElementById('dtFim').value;
+  const el  = document.getElementById('periodoInfo');
+  if (!ini || !fim) { el.textContent = ''; return; }
+  const diff = (new Date(fim) - new Date(ini)) / 3600000;
+  if (diff <= 0) {
+    el.textContent = '⚠ A data fim deve ser maior que a data início';
+    el.style.color = 'var(--red)';
+  } else if (diff > 744) {
+    el.textContent = '⚠ Período máximo: 31 dias';
+    el.style.color = 'var(--red)';
+  } else {
+    const h = Math.floor(diff);
+    const m = Math.round((diff - h) * 60);
+    el.textContent = `Período selecionado: ${h}h ${m}min`;
+    el.style.color = 'var(--text-3)';
+  }
+}
+
+async function gerarRelatorio() {
+  const ini = document.getElementById('dtInicio').value;
+  const fim = document.getElementById('dtFim').value;
+  const erro = document.getElementById('msgErro');
+  erro.classList.remove('vis');
+
+  if (!ini || !fim) {
+    erro.textContent = 'Selecione o período antes de gerar.';
+    erro.classList.add('vis'); return;
+  }
+  if (new Date(fim) <= new Date(ini)) {
+    erro.textContent = 'A data fim deve ser maior que a data início.';
+    erro.classList.add('vis'); return;
+  }
+
+  const btn = document.getElementById('btnGerar');
+  const spin = document.getElementById('btnSpin');
+  const txt  = document.getElementById('btnTxt');
+  btn.disabled = true;
+  btn.classList.add('loading');
+  spin.style.display = 'block';
+  txt.textContent = 'Gerando relatório…';
+
+  try {
+    const url = `{{ url_for('conferencia.relatorio_gerar') }}?dt_inicio=${ini}&dt_fim=${fim}&fmt=${fmtSelecionado}`;
+    const resp = await fetch(url);
+
+    if (!resp.ok) {
+      const data = await resp.json();
+      throw new Error(data.error || `HTTP ${resp.status}`);
+    }
+
+    // Força download do arquivo
+    const blob = await resp.blob();
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    const ext  = fmtSelecionado;
+    const ini_ = ini.replace('T','_').replace(':','h').slice(0,14);
+    const fim_ = fim.replace('T','_').replace(':','h').slice(0,14);
+    link.download = `relatorio_ronda_${ini_}_${fim_}.${ext}`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+
+  } catch(e) {
+    erro.textContent = `Erro: ${e.message}`;
+    erro.classList.add('vis');
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('loading');
+    spin.style.display = 'none';
+    txt.textContent = '⬇ Gerar e Baixar Relatório';
+  }
+}
+
+// Define padrão: últimas 24h
+setPeriodo(1);
+</script>
+{% endblock %}

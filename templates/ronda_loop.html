@@ -1,0 +1,276 @@
+{% extends "base.html" %}
+{% block title %}Ronda Contínua — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Ronda Contínua</h1>
+    <span id="badge-status" class="badge badge-secondary" style="font-size:13px; padding:6px 14px;">⏹ Inativo</span>
+</div>
+
+<!-- CARDS DE STATUS -->
+<div style="display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; margin-bottom:1.5rem;">
+    <div class="card" style="text-align:center; margin-bottom:0; border-top:3px solid #6c757d;">
+        <div style="font-size:28px; font-weight:700; color:#333;" id="card-ciclo">—</div>
+        <div style="font-size:12px; color:#888; margin-top:4px;">🔄 Ciclo Atual</div>
+    </div>
+    <div class="card" style="text-align:center; margin-bottom:0; border-top:3px solid #198754;">
+        <div style="font-size:28px; font-weight:700; color:#198754;" id="card-total">0</div>
+        <div style="font-size:12px; color:#888; margin-top:4px;">✅ Ciclos Concluídos</div>
+    </div>
+    <div class="card" style="text-align:center; margin-bottom:0; border-top:3px solid #f5c400;">
+        <div style="font-size:13px; font-weight:600; color:#333; margin-top:4px;" id="card-inicio">—</div>
+        <div style="font-size:12px; color:#888; margin-top:4px;">🕐 Iniciado em</div>
+    </div>
+    <div class="card" style="text-align:center; margin-bottom:0; border-top:3px solid #0dcaf0;">
+        <div style="font-size:13px; font-weight:600; color:#333; margin-top:4px;" id="card-ultimo">—</div>
+        <div style="font-size:12px; color:#888; margin-top:4px;">⏱ Último Ciclo</div>
+    </div>
+</div>
+
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;">
+
+    <!-- PAINEL DE CONTROLE -->
+    <div class="card">
+        <div class="card-title">️ Controle do Loop</div>
+
+        <div class="form-group">
+            <label>Monitor</label>
+            <input type="text" id="inp-monitor" value="{{ monitor_nome }}" placeholder="Nome do monitor">
+        </div>
+        <div class="form-group">
+            <label>Turno</label>
+            <select id="inp-turno">
+                <option value="Diurno"  {% if turno == 'Diurno'  %}selected{% endif %}>Diurno</option>
+                <option value="Noturno" {% if turno == 'Noturno' %}selected{% endif %}>Noturno</option>
+            </select>
+        </div>
+
+        <div class="form-group">
+            <label>NVRs a monitorar</label>
+            <div style="display:flex; flex-direction:column; gap:6px; margin-top:4px;">
+                <label style="font-weight:400; color:#aaa; display:flex; gap:8px; align-items:center; cursor:pointer;">
+                    <input type="checkbox" id="chk-todos-nvrs" checked onchange="toggleTodosNvrs(this)">
+                    <span style="font-weight:600;">Todos os NVRs</span>
+                </label>
+                <div id="lista-nvrs" style="display:none; padding-left:20px; display:flex; flex-direction:column; gap:4px;">
+                    {% for nvr in nvrs %}
+                    <label style="font-weight:400; color:#aaa; display:flex; gap:8px; align-items:center; cursor:pointer;">
+                        <input type="checkbox" class="chk-nvr" value="{{ nvr.id }}" checked>
+                        {{ nvr.site }} - {{ nvr.nome }} ({{ nvr.ip }})
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div style="display:flex; gap:10px; margin-top:1rem;">
+            <button id="btn-iniciar" onclick="iniciarLoop()" class="btn btn-success" style="flex:1;">
+                ▶ Iniciar Loop
+            </button>
+            <button id="btn-parar" onclick="pararLoop()" class="btn btn-danger" style="flex:1; display:none;">
+                ⏹ Parar após este ciclo
+            </button>
+        </div>
+
+        <div id="aviso-parada" style="display:none; margin-top:12px; padding:10px 14px;
+             background:#fff3cd; border:1px solid #ffeeba; border-radius:6px;
+             font-size:13px; color:#856404;">
+            ⚠️ Parada solicitada. O loop encerrará após o ciclo atual ser concluído.
+        </div>
+
+        <div id="aviso-erro" style="display:none; margin-top:12px; padding:10px 14px;
+             background:rgba(220,53,69,0.15); border:1px solid rgba(220,53,69,0.3); border-radius:6px;
+             font-size:13px; color:#f88;">
+        </div>
+    </div>
+
+    <!-- LOG EM TEMPO REAL -->
+    <div class="card" style="display:flex; flex-direction:column;">
+        <div class="card-title" style="display:flex; justify-content:space-between; align-items:center;"><span>📋 Log em Tempo Real</span>
+            <button onclick="limparLog()" class="btn btn-primary btn-sm">Limpar</button>
+        </div>
+        <div id="log-box" style="
+            flex:1; min-height:300px; max-height:400px;
+            overflow-y:auto; background:#0d1117; border-radius:8px;
+            padding:12px; font-family:'Courier New', monospace; font-size:12px;
+            color:#7ee787; line-height:1.7;
+        ">
+            <span style="color:#888;">Aguardando início do loop...</span>
+        </div>
+    </div>
+</div>
+
+<!-- INSTRUÇÃO -->
+<div class="card" style="margin-top:0; background:rgba(245,196,0,0.05); border-color:#f5c400;">
+    <div style="font-size:13px; color:#888; line-height:1.8;">
+        <strong style="color:#fff;">ℹ️ Como funciona:</strong>
+        O loop executa rondas automaticamente em sequência — assim que uma termina e gera o relatório, a próxima começa imediatamente.
+        Ao clicar em <strong>"Parar após este ciclo"</strong>, a ronda em andamento é concluída normalmente e nenhuma nova é iniciada.
+        Todos os alarmes detectados ficam disponíveis na <a href="{{ url_for('alarmes.central_alarmes') }}" style="color:#f5c400;">Central de Alarmes</a>.
+    </div>
+</div>
+
+<script>
+let _polling = null;
+let _logUltimoIdx = 0;
+
+// ── Inicializa ──────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+    atualizarStatus();
+    _polling = setInterval(atualizarStatus, 3000);
+});
+
+// ── Toggle NVRs ─────────────────────────────────────────
+function toggleTodosNvrs(chk) {
+    const lista = document.getElementById('lista-nvrs');
+    lista.style.display = chk.checked ? 'none' : 'flex';
+    document.querySelectorAll('.chk-nvr').forEach(c => c.checked = true);
+}
+
+// ── Iniciar ─────────────────────────────────────────────
+async function iniciarLoop() {
+    const monitor = document.getElementById('inp-monitor').value.trim() || 'Não informado';
+    const turno   = document.getElementById('inp-turno').value;
+    const todos   = document.getElementById('chk-todos-nvrs').checked;
+    const nvr_ids = todos
+        ? null
+        : [...document.querySelectorAll('.chk-nvr:checked')].map(c => c.value);
+
+    if (!todos && nvr_ids.length === 0) {
+        toast('Selecione ao menos um NVR.', 'error'); return;
+    }
+
+    try {
+        const r = await fetch('/api/ronda-loop/iniciar', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ monitor_nome: monitor, turno, nvr_ids }),
+        }).then(r => r.json());
+
+        if (r.ok) {
+            _logUltimoIdx = 0;
+            toast('Loop iniciado!', 'ok');
+        } else {
+            toast(r.erro || 'Erro ao iniciar.', 'error');
+        }
+    } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+// ── Parar ────────────────────────────────────────────────
+async function pararLoop() {
+    if (!confirm('Parar o loop após o ciclo atual?')) return;
+    try {
+        const r = await fetch('/api/ronda-loop/parar', { method: 'POST' }).then(r => r.json());
+        if (r.ok) toast('Parada solicitada. Aguardando fim do ciclo...', 'ok');
+        else toast(r.erro || 'Erro ao parar.', 'error');
+    } catch(e) { toast('Erro: ' + e.message, 'error'); }
+}
+
+// ── Polling de status ────────────────────────────────────
+async function atualizarStatus() {
+    try {
+        const s = await fetch('/api/ronda-loop/status').then(r => r.json());
+        renderStatus(s);
+        renderLog(s.log);
+    } catch(_) {}
+}
+
+function renderStatus(s) {
+    const badge     = document.getElementById('badge-status');
+    const btnIni    = document.getElementById('btn-iniciar');
+    const btnPar    = document.getElementById('btn-parar');
+    const avisoStop = document.getElementById('aviso-parada');
+    const avisoErr  = document.getElementById('aviso-erro');
+
+    // Badge e botões
+    if (s.ativo && s.parar) {
+        badge.className = 'badge badge-warning';
+        badge.textContent = '⚠️ Parando...';
+        btnIni.style.display = 'none';
+        btnPar.style.display = 'none';
+        avisoStop.style.display = 'block';
+    } else if (s.ativo) {
+        badge.className = 'badge badge-success';
+        badge.textContent = `▶ Rodando — Ciclo #${s.ciclo_atual}`;
+        btnIni.style.display = 'none';
+        btnPar.style.display = 'inline-block';
+        avisoStop.style.display = 'none';
+    } else {
+        badge.className = 'badge badge-secondary';
+        badge.textContent = '⏹ Inativo';
+        btnIni.style.display = 'inline-block';
+        btnPar.style.display = 'none';
+        avisoStop.style.display = 'none';
+    }
+
+    // Erro
+    if (s.erro) {
+        avisoErr.style.display = 'block';
+        avisoErr.textContent = '❌ Último erro: ' + s.erro;
+    } else {
+        avisoErr.style.display = 'none';
+    }
+
+    // Cards
+    document.getElementById('card-ciclo').textContent  = s.ativo ? s.ciclo_atual : '—';
+    document.getElementById('card-total').textContent  = s.total_ciclos;
+    document.getElementById('card-inicio').textContent = s.iniciado_em
+        ? s.iniciado_em.slice(0, 16).replace('T', ' ')
+        : '—';
+    document.getElementById('card-ultimo').textContent = s.ultimo_ciclo
+        ? s.ultimo_ciclo.slice(0, 16).replace('T', ' ')
+        : '—';
+}
+
+function renderLog(linhas) {
+    if (!linhas || linhas.length === 0) return;
+    const box = document.getElementById('log-box');
+
+    // Limpa placeholder na primeira vez
+    if (box.children.length === 1 && box.children[0].tagName === 'SPAN') {
+        box.innerHTML = '';
+    }
+
+    // Só adiciona linhas novas
+    const novas = linhas.slice(_logUltimoIdx);
+    if (novas.length === 0) return;
+
+    novas.forEach(linha => {
+        const div = document.createElement('div');
+        div.textContent = linha;
+        if (linha.includes('[WARN]'))      div.style.color = '#f0883e';
+        else if (linha.includes('ENCERR')) div.style.color = '#f85149';
+        else if (linha.includes('Ciclo #') && linha.includes('concluído')) div.style.color = '#3fb950';
+        box.appendChild(div);
+    });
+
+    _logUltimoIdx = linhas.length;
+    box.scrollTop = box.scrollHeight;
+}
+
+function limparLog() {
+    document.getElementById('log-box').innerHTML =
+        '<span style="color:#888;">Log limpo.</span>';
+    _logUltimoIdx = 0;
+}
+
+// ── Toast ────────────────────────────────────────────────
+function toast(msg, tipo) {
+    let ct = document.getElementById('toast-ct');
+    if (!ct) {
+        ct = document.createElement('div');
+        ct.id = 'toast-ct';
+        ct.style.cssText = 'position:fixed;bottom:24px;right:24px;display:flex;flex-direction:column;gap:8px;z-index:9000;';
+        document.body.appendChild(ct);
+    }
+    const el = document.createElement('div');
+    el.style.cssText = `font-size:13px;padding:12px 18px;border-radius:8px;background:#0f0f0f;
+        box-shadow:0 8px 32px rgba(0,0,0,.2);
+        border-left:4px solid ${tipo==='ok'?'#28a745':'#dc3545'};
+        color:#333;max-width:340px;`;
+    el.textContent = msg;
+    ct.appendChild(el);
+    setTimeout(() => el.remove(), 3500);
+}
+</script>
+{% endblock %}
