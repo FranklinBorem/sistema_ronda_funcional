@@ -56,32 +56,49 @@ PK composta `(usuario_id, unidade_id)`. Só populada para papéis de escopo rest
 | nome | varchar(100) | NOT NULL |
 
 ### `nvrs`
+
+Representa o **grupo/site organizacional** de câmeras (ex.: `NVR-GD_GETULINA-SP`) — na maioria dos casos é também um dispositivo físico real que a plataforma consulta via ISAPI, mas pode existir como agrupador puramente organizacional quando todas as câmeras dele são avulsas (ver nota de nullability abaixo).
+
 | Coluna | Tipo | Regras |
 |---|---|---|
 | id | serial | PK |
 | unidade_id | integer | FK → unidades.id, NOT NULL (empresa_id fica implícito via unidade — **não duplicar**, ver nota abaixo) |
+| nome | varchar(150) | NOT NULL — ex. "NVR-GD_GETULINA-SP", o identificador do grupo/site |
 | fabricante | varchar(50) | NOT NULL, default 'hikvision' |
 | modelo | varchar(80) | nullable |
-| endereco_ip | varchar(50) | NOT NULL |
-| porta | integer | default 80 |
-| usuario_acesso | varchar(80) | NOT NULL |
-| credencial_ref | varchar(255) | NOT NULL — referência ao segredo (não a senha em si; ver `security/seguranca.md`) |
+| endereco_ip | varchar(50) | **nullable** — só preenchido quando o NVR é, ele mesmo, um dispositivo físico consultável (a maioria dos casos); fica nulo quando o registro existe só como agrupador de câmeras avulsas |
+| porta | integer | default 80, nullable |
+| usuario_acesso | varchar(80) | nullable (mesma regra do `endereco_ip`) |
+| credencial_ref | varchar(255) | nullable — referência ao segredo (não a senha em si; ver `security/seguranca.md`) |
 | status | varchar(20) | default 'ativo' |
 
-**Índice**: `unidade_id`; `endereco_ip` (usado em consultas de diagnóstico).
-**Origem**: unifica `models/nvr.py:Nvr` e `models/nvr_monitorado.py:NvrMonitorado` — **decisão pendente de aprovação**, ver `decisions/decisoes-pendentes.md`, porque os dois fluxos (ronda e conferência) hoje são ativos e essa unificação tem risco operacional se malfeita.
+**Índice**: `unidade_id`; `endereco_ip` (usado em consultas de diagnóstico, quando preenchido).
+**Origem**: unifica `models/nvr.py:Nvr` e `models/nvr_monitorado.py:NvrMonitorado` — **decisão pendente de aprovação**, ver `decisions/decisoes-pendentes.md`. Como o banco está sendo reconstruído do zero (dados anteriores perdidos), essa unificação deixa de ter risco de migração de dado em produção — só precisa ser confirmada como o modelo definitivo antes da primeira migration real.
 
 ### `cameras`
+
+Toda câmera pertence a um `nvr_id` (o grupo/site), mas a forma de **conectar** com ela varia conforme `modo_conexao`: via canal de um NVR físico, ou via IP próprio da câmera (dome/fixa endereçável diretamente) — refletindo a prática real observada (ex.: um NVR com 11 canais mistos entre bullet/dome/PTZ).
+
 | Coluna | Tipo | Regras |
 |---|---|---|
 | id | serial | PK |
-| nvr_id | integer | FK → nvrs.id, NOT NULL |
-| canal | integer | NOT NULL |
-| nome | varchar(100) | nullable |
-| capacidades | jsonb | NOT NULL, default '{}' — ex.: `{"ptz": true, "presets": true, "captura": true}` |
+| nvr_id | integer | FK → nvrs.id, NOT NULL — grupo/site ao qual a câmera pertence, sempre obrigatório |
+| modo_conexao | varchar(20) | NOT NULL, CHECK IN ('via_nvr', 'ip_direto') |
+| canal | integer | nullable — obrigatório em regra (ver CHECK) quando `modo_conexao='via_nvr'` |
+| endereco_ip | varchar(50) | nullable — obrigatório em regra quando `modo_conexao='ip_direto'` |
+| porta | integer | nullable — usado só em `modo_conexao='ip_direto'` |
+| usuario_acesso | varchar(80) | nullable — credencial própria da câmera, usado só em `modo_conexao='ip_direto'` |
+| credencial_ref | varchar(255) | nullable — idem, referência ao segredo |
+| tipo | varchar(20) | NOT NULL, CHECK IN ('bullet','dome','dome_interna','ptz','generica') |
+| nome | varchar(100) | nullable — ex. "GTL2 - BULLET PORTAO", "GTL2 - DOME INTERNA 1" |
+| capacidades | jsonb | NOT NULL, default '{}' — ex.: `{"ptz": true, "presets": true, "captura": true}`, sugerido a partir de `tipo` no cadastro e editável depois |
 
-**Índice**: `(nvr_id, canal)` UNIQUE composto — um canal não se repete no mesmo NVR.
+**CHECK adicional**: `(modo_conexao = 'via_nvr' AND canal IS NOT NULL) OR (modo_conexao = 'ip_direto' AND endereco_ip IS NOT NULL)` — garante que toda câmera tenha uma forma real de ser alcançada, qualquer que seja o modo.
+**Índice**: `(nvr_id, canal)` UNIQUE composto parcial (só aplicável quando `modo_conexao='via_nvr'`) — um canal não se repete no mesmo NVR físico; `(nvr_id, endereco_ip)` para o caso `ip_direto`.
 **Por que jsonb para capacidades**: capacidades variam por fabricante/modelo e crescem ao longo do tempo (Fase 5 adiciona fabricantes com capacidades diferentes) — uma coluna booleana fixa por capacidade exigiria migration a cada nova capacidade; jsonb evita isso sem perder a possibilidade de indexar (`GIN index` em `capacidades`, se necessário no futuro).
+**Fluxo de cadastro "subir o NVR"**: ao cadastrar um `nvr` com `endereco_ip`/credencial preenchidos, o sistema consulta ISAPI (`status_canais()`, já existente em `services/isapi_poller.py`) e cria automaticamente um registro de `Camera` por canal encontrado, com `modo_conexao='via_nvr'`, sugerindo `nome`/`tipo` a partir do que o equipamento retornar — o operador edita depois, não recadastra do zero.
+**Fluxo de cadastro "câmera por câmera"**: o operador escolhe (ou cria) primeiro o `nvr` (grupo/site), depois cadastra a câmera com `modo_conexao='ip_direto'` e seu próprio IP/credencial — nunca existe câmera sem `nvr_id`.
+**Driver de equipamento**: o `HikvisionIsapiDriver` (`architecture/equipamentos.md`) atende os dois modos sem precisar de uma segunda implementação — a diferença é só de onde ele lê o endereço de conexão (do NVR pai, ou da própria câmera).
 
 ### `presets`
 | Coluna | Tipo | Regras |

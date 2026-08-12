@@ -53,7 +53,9 @@ classDiagram
 
     class Camera {
         +id
+        +modoConexao
         +canal
+        +tipo
         +nome
         +capacidades
     }

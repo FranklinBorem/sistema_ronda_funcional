@@ -4,11 +4,10 @@ Nenhuma destas decisões deve ser implementada sem você confirmar — são as e
 
 ---
 
-### 1. Unificar `Nvr` e `NvrMonitorado` em uma única tabela?
-- **Opções**: (a) unificar em uma tabela `nvrs` única, conforme proposto em `database/modelo-banco.md`; (b) manter as duas tabelas separadas, só adicionando `unidade_id` a cada uma.
-- **Minha recomendação**: (a), pois representam o mesmo conceito de negócio e a duplicação hoje já causou divergência de comportamento (o padrão análogo já visto entre os dois `conferencia_loop.py`).
-- **Impacto**: unificar exige migrar dado de duas tabelas em uma, com risco de perda/inconsistência se malfeito; os dois fluxos (ronda e conferência) estão ativos em produção hoje.
-- **Por que precisa da sua decisão**: é uma migração de dado real em produção, não uma refatoração de código — o risco recai sobre dados operacionais que você depende diariamente.
+### 1. Unificar `Nvr` e `NvrMonitorado` em uma única tabela? — **RESOLVIDA (contexto mudou)**
+- **Status**: o banco de produção foi apagado (ação do TI) antes desta decisão ser implementada — não há mais dado legado a migrar/proteger, então o risco original desta decisão deixou de existir.
+- **Decisão adotada**: unificar em uma única tabela `nvrs`, já refletida em `database/modelo-banco.md`, incluindo o ajuste adicional de `modo_conexao` em `cameras` (via NVR físico ou IP direto) definido em conversa posterior a este documento.
+- Mantido aqui só como registro histórico — vira ADR formal (`ADR-001`) quando a primeira migration for aplicada, conforme `decisions/documentacao.md`.
 
 ### 2. Nível de rigor do isolamento multi-tenant desde o início
 - **Opções**: (a) filtro de aplicação (`empresa_id` nos repositories) apenas; (b) filtro de aplicação + Row-Level Security desde a Fase 2; (c) RLS em todas as tabelas desde o início.
