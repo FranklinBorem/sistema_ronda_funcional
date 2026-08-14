@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Novo NVR / Grupo — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 640px;">
+  <h1 class="h3 mb-4">Novo NVR / Grupo</h1>
+
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Nome do NVR/grupo</label>
+      <input type="text" name="nome" class="form-control" required
+             placeholder="ex.: NVR-GD_GETULINA-SP">
+    </div>
+
+    <div class="alert alert-secondary small">
+      Preencha IP + usuário + senha para <strong>subir um NVR físico</strong> —
+      o sistema vai tentar descobrir todas as câmeras/canais automaticamente.
+      Deixe em branco para criar apenas um <strong>grupo organizacional</strong>
+      (você cadastra as câmeras avulsas depois, dentro dele).
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Endereço IP</label>
+      <input type="text" name="endereco_ip" class="form-control" placeholder="192.168.1.10">
+    </div>
+    <div class="row">
+      <div class="col-8 mb-3">
+        <label class="form-label">Usuário</label>
+        <input type="text" name="usuario_acesso" class="form-control" placeholder="admin">
+      </div>
+      <div class="col-4 mb-3">
+        <label class="form-label">Porta</label>
+        <input type="number" name="porta" class="form-control" value="80">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Senha</label>
+      <input type="password" name="senha" class="form-control" value="" autocomplete="new-password">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Salvar</button>
+    <a href="{{ url_for('equipamentos.listar') }}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

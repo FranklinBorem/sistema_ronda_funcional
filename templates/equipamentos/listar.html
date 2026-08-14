@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Equipamentos — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0">Equipamentos</h1>
+    <a href="{{ url_for('equipamentos.nvr_novo') }}" class="btn btn-primary">
+      + Novo NVR / Grupo
+    </a>
+  </div>
+
+  {% if not nvrs_com_cameras %}
+    <div class="alert alert-info">
+      Nenhum NVR/grupo cadastrado ainda. Cadastre um NVR físico (com IP e
+      credencial) para descobrir as câmeras automaticamente, ou crie um
+      grupo só para organizar câmeras avulsas.
+    </div>
+  {% endif %}
+
+  {% for item in nvrs_com_cameras %}
+    {% set nvr = item.nvr %}
+    {% set cameras = item.cameras %}
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <div>
+          <strong>{{ nvr.nome }}</strong>
+          {% if nvr.endereco_ip %}
+            <span class="text-muted">— {{ nvr.endereco_ip }}:{{ nvr.porta }}</span>
+          {% else %}
+            <span class="badge bg-secondary">grupo organizacional</span>
+          {% endif %}
+          <span class="badge bg-light text-dark">{{ cameras|length }} câmera(s)</span>
+        </div>
+        <div>
+          <a href="{{ url_for('equipamentos.camera_nova', nvr_id=nvr.id) }}"
+             class="btn btn-sm btn-outline-primary">+ Câmera avulsa</a>
+          <form method="POST" action="{{ url_for('equipamentos.nvr_excluir', nvr_id=nvr.id) }}"
+                class="d-inline" onsubmit="return confirm('Remover este NVR e todas as câmeras dele?');">
+            <button type="submit" class="btn btn-sm btn-outline-danger">Excluir</button>
+          </form>
+        </div>
+      </div>
+      {% if cameras %}
+        <ul class="list-group list-group-flush">
+          {% for cam in cameras %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+              <span>
+                <span class="badge bg-secondary">{{ cam.tipo }}</span>
+                {{ cam.nome or "Câmera #" ~ cam.id }}
+                {% if cam.modo_conexao == "via_nvr" %}
+                  <span class="text-muted">— canal {{ cam.canal }}</span>
+                {% else %}
+                  <span class="text-muted">— {{ cam.endereco_ip }} (avulsa)</span>
+                {% endif %}
+              </span>
+              <form method="POST" action="{{ url_for('equipamentos.camera_excluir', camera_id=cam.id) }}"
+                    onsubmit="return confirm('Remover esta câmera?');">
+                <button type="submit" class="btn btn-sm btn-link text-danger p-0">remover</button>
+              </form>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

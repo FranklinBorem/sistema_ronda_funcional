@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Nova Câmera Avulsa — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="container py-4" style="max-width: 640px;">
+  <h1 class="h3 mb-1">Nova câmera avulsa</h1>
+  <p class="text-muted">Grupo/site: <strong>{{ nvr.nome }}</strong></p>
+
+  <form method="POST">
+    <div class="mb-3">
+      <label class="form-label">Tipo</label>
+      <select name="tipo" class="form-select">
+        <option value="bullet">Bullet</option>
+        <option value="dome">Dome</option>
+        <option value="dome_interna">Dome interna</option>
+        <option value="ptz">PTZ</option>
+        <option value="generica" selected>Genérica</option>
+      </select>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Nome</label>
+      <input type="text" name="nome" class="form-control" placeholder="ex.: Dome portão lateral">
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Endereço IP</label>
+      <input type="text" name="endereco_ip" class="form-control" required placeholder="192.168.1.55">
+    </div>
+    <div class="row">
+      <div class="col-8 mb-3">
+        <label class="form-label">Usuário</label>
+        <input type="text" name="usuario_acesso" class="form-control" placeholder="admin">
+      </div>
+      <div class="col-4 mb-3">
+        <label class="form-label">Porta</label>
+        <input type="number" name="porta" class="form-control" value="80">
+      </div>
+    </div>
+    <div class="mb-3">
+      <label class="form-label">Senha</label>
+      <input type="password" name="senha" class="form-control" value="" autocomplete="new-password">
+    </div>
+
+    <button type="submit" class="btn btn-primary">Salvar</button>
+    <a href="{{ url_for('equipamentos.listar') }}" class="btn btn-outline-secondary">Cancelar</a>
+  </form>
+</div>
+{% endblock %}

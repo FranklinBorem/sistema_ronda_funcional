@@ -13,5 +13,6 @@ Como pacote de nível superior separado, isso nunca acontece.
 """
 from .base import BaseRepositoryV2
 from .usuario_repository import UsuarioRepository
+from .nvr_repository import NvrRepository
 
-__all__ = ["BaseRepositoryV2", "UsuarioRepository"]
+__all__ = ["BaseRepositoryV2", "UsuarioRepository", "NvrRepository"]
