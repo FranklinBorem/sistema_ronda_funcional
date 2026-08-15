@@ -14,5 +14,6 @@ Como pacote de nível superior separado, isso nunca acontece.
 from .base import BaseRepositoryV2
 from .usuario_repository import UsuarioRepository
 from .nvr_repository import NvrRepository
+from .ronda_repository import RondaRepository
 
-__all__ = ["BaseRepositoryV2", "UsuarioRepository", "NvrRepository"]
+__all__ = ["BaseRepositoryV2", "UsuarioRepository", "NvrRepository", "RondaRepository"]

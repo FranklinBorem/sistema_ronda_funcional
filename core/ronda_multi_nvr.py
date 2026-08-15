@@ -88,6 +88,59 @@ def _nvr_para_config(nvr) -> NVRConfig:
         site=nvr.site or "",
         ativo=nvr.ativo,
     )
+
+
+def _camera_v2_para_config(camera) -> NVRConfig:
+    """
+    Converte um models_v2.Camera (PTZ, com presets) para NVRConfig.
+
+    ADAPTAÇÃO ESTRUTURAL (não é um simples rename de _nvr_para_config):
+    no schema antigo, "Nvr" representava UMA câmera PTZ individual
+    (com seu próprio IP/canal). No schema novo, `Nvr` é o grupo/site
+    (pode ter várias câmeras), e cada `Camera` com capacidade PTZ é
+    quem tem canal + presets — logo, a unidade de trabalho da ronda
+    passa a ser uma Camera, não um Nvr inteiro. Ver
+    docs/database/modelo-banco.md e a conversa sobre modo_conexao.
+
+    Resolve IP/usuário/credencial da própria câmera quando
+    modo_conexao='ip_direto', ou do NVR físico pai quando
+    modo_conexao='via_nvr'.
+
+    GAPS CONHECIDOS (sem equivalente no schema novo ainda, usando
+    valor padrão até virarem campos reais — não bloqueiam a ronda,
+    mas afinamento fino por câmera fica indisponível por ora):
+    - tempo_espera / timeout: eram configuráveis por NVR no schema
+      antigo; usam os defaults do próprio dataclass NVRConfig até
+      isso ser modelado como campo real, se necessário.
+    - ativo: models_v2.Camera não tem campo de status próprio ainda
+      (herda do status do Nvr pai); sempre True aqui.
+    """
+    nvr = camera.nvr
+    if camera.modo_conexao == "ip_direto":
+        ip = camera.endereco_ip
+        usuario = camera.usuario_acesso or ""
+        senha = camera.credencial_ref or ""
+        snapshot_channel = "101"
+    else:  # via_nvr
+        ip = nvr.endereco_ip
+        usuario = nvr.usuario_acesso or ""
+        senha = nvr.credencial_ref or ""
+        snapshot_channel = f"{camera.canal}01"
+
+    return NVRConfig(
+        id=str(camera.id),
+        nome=camera.nome or f"Câmera {camera.id}",
+        ip=ip or "",
+        usuario=usuario,
+        senha=senha,
+        ptz_channel=camera.canal or 1,
+        snapshot_channel=snapshot_channel,
+        presets={p.numero: (p.descricao or f"Preset {p.numero}") for p in camera.presets},
+        tempo_espera=NVRConfig.__dataclass_fields__["tempo_espera"].default,
+        timeout=NVRConfig.__dataclass_fields__["timeout"].default,
+        site=nvr.unidade.nome if nvr.unidade else "",
+        ativo=True,
+    )
 from core.yolo_config import caminho_modelo_yolo
 
 load_dotenv()
@@ -393,6 +446,76 @@ def _registrar_alerta(
             )
     except Exception as e:
         print(f"[AVISO DB] registrar_alerta: {e}")
+
+
+# =========================================================
+# PERSISTÊNCIA — SCHEMA NOVO (models_v2), Fase C da religação
+# =========================================================
+# As três funções abaixo são os equivalentes v2 das três acima.
+# Coexistem com as antigas (não as substituem) até a orquestração de
+# executar_ronda_multi() ser efetivamente religada para usar Camera em
+# vez de Nvr como unidade de trabalho — o que exige validação contra
+# hardware real (NVR/câmera físicos), indisponível neste ambiente de
+# desenvolvimento. Ver core/camera_config_v2.py para a discussão
+# completa dessa adaptação estrutural.
+
+def _salvar_resultado_nvr_v2(
+    ronda_pai_id: int | None,
+    nvr_id: int,
+    status: str,
+    imagens_ref: dict | None = None,
+) -> None:
+    """Equivalente v2 de _salvar_ronda_nvr — usa RondaRepository (repositories_v2)."""
+    try:
+        from repositories_v2.db_session import session_scope
+        from repositories_v2.ronda_repository import RondaRepository
+        with session_scope() as session:
+            RondaRepository(session=session).registrar_resultado_nvr(
+                ronda_id=ronda_pai_id,
+                nvr_id=nvr_id,
+                status=status,
+                imagens_ref=imagens_ref,
+            )
+    except Exception as e:
+        print(f"[AVISO DB v2] salvar_resultado_nvr: {e}")
+
+
+def _atualizar_ronda_pai_v2(ronda_id: int | None, status: str) -> None:
+    """Equivalente v2 de _atualizar_ronda_pai — usa RondaRepository (repositories_v2)."""
+    if not ronda_id:
+        return
+    try:
+        from repositories_v2.db_session import session_scope
+        from repositories_v2.ronda_repository import RondaRepository
+        with session_scope() as session:
+            RondaRepository(session=session).finalizar(ronda_id=ronda_id, status=status)
+    except Exception as e:
+        print(f"[AVISO DB v2] atualizar_ronda_pai: {e}")
+
+
+def _registrar_ocorrencia_deteccao_v2(
+    ronda_id: int | None,
+    nvr_id: int,
+    pessoas: int,
+    local_preset: str,
+    imagem_path: str | None,
+    detectado_em: datetime,
+) -> None:
+    """Equivalente v2 de _registrar_alerta — cria uma Ocorrencia (repositories_v2)."""
+    try:
+        from repositories_v2.db_session import session_scope
+        from repositories_v2.ronda_repository import RondaRepository
+        with session_scope() as session:
+            RondaRepository(session=session).registrar_ocorrencia_deteccao(
+                nvr_id=nvr_id,
+                pessoas=pessoas,
+                local_preset=local_preset,
+                imagem_path=imagem_path,
+                detectado_em=detectado_em,
+                ronda_id=ronda_id,
+            )
+    except Exception as e:
+        print(f"[AVISO DB v2] registrar_ocorrencia_deteccao: {e}")
 
 
 # =========================================================
