@@ -37,13 +37,20 @@ class MonitoramentoRepository(BaseRepositoryV2):
 
     # ── Ocorrência de falha (abre/fecha automaticamente) ─────────────────
 
-    def sincronizar_ocorrencia_falha_camera(self, camera_id: int, online: bool) -> None:
+    def sincronizar_ocorrencia_falha_camera(
+        self, camera_id: int, online: bool
+    ) -> tuple[Ocorrencia | None, bool]:
         """
         Se online=False e não há ocorrência de falha ABERTA para esta
         câmera, abre uma nova (origem='falha_equipamento'). Se
         online=True e existe uma ocorrência ABERTA, marca como
         resolvida. Idempotente — chamar a cada ciclo de polling não
         duplica ocorrências.
+
+        Retorna (ocorrencia, resolucao) — ocorrencia é None quando
+        nada mudou neste ciclo (nem abriu nem fechou); resolucao=True
+        indica que a ocorrência retornada é um fechamento (para quem
+        chama decidir se/como notificar).
         """
         aberta = (
             self.session.query(Ocorrencia)
@@ -55,7 +62,7 @@ class MonitoramentoRepository(BaseRepositoryV2):
         if not online and aberta is None:
             camera = self.session.get(Camera, camera_id)
             if camera is None:
-                return
+                return None, False
             nvr = camera.nvr
             unidade = nvr.unidade
             ocorrencia = Ocorrencia(
@@ -68,11 +75,15 @@ class MonitoramentoRepository(BaseRepositoryV2):
             )
             self.session.add(ocorrencia)
             self.session.flush()
+            return ocorrencia, False
 
         elif online and aberta is not None:
             aberta.status = "resolvida"
             aberta.tratado_em = datetime.now(timezone.utc)
             self.session.flush()
+            return aberta, True
+
+        return None, False
 
     def contar_cameras_online(self, unidade_id: int) -> tuple[int, int]:
         """(online, total) — última leitura de cada câmera da unidade."""

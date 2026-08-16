@@ -36,10 +36,12 @@ def _executar_ciclo_v2() -> None:
     from repositories_v2.nvr_repository import NvrRepository
     from repositories_v2.monitoramento_repository import MonitoramentoRepository
     from services_v2.isapi_client import ISAPIClient
+    from services_v2.notificacao_service import NotificacaoService
 
     with session_scope() as session:
         nvr_repo = NvrRepository(session=session)
         mon_repo = MonitoramentoRepository(session=session)
+        notif_service = NotificacaoService(session=session)
 
         from models_v2.nvr import Nvr
         nvrs_com_ip = (
@@ -83,7 +85,11 @@ def _executar_ciclo_v2() -> None:
                         else:
                             online_cam = False
                         mon_repo.registrar_status_camera(camera.id, online=online_cam)
-                        mon_repo.sincronizar_ocorrencia_falha_camera(camera.id, online=online_cam)
+                        ocorrencia, resolucao = mon_repo.sincronizar_ocorrencia_falha_camera(
+                            camera.id, online=online_cam
+                        )
+                        if ocorrencia is not None:
+                            notif_service.notificar_ocorrencia(ocorrencia, resolucao=resolucao)
                     continue
 
                 try:
@@ -114,7 +120,11 @@ def _executar_ciclo_v2() -> None:
                         except Exception:
                             online_cam = False
                     mon_repo.registrar_status_camera(camera.id, online=online_cam)
-                    mon_repo.sincronizar_ocorrencia_falha_camera(camera.id, online=online_cam)
+                    ocorrencia, resolucao = mon_repo.sincronizar_ocorrencia_falha_camera(
+                        camera.id, online=online_cam
+                    )
+                    if ocorrencia is not None:
+                        notif_service.notificar_ocorrencia(ocorrencia, resolucao=resolucao)
 
             except Exception as e:
                 logger.error("Falha ao consultar NVR %s (%s): %s", nvr.nome, nvr.endereco_ip, e)

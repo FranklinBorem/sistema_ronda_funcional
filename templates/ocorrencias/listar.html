@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Ocorrências — Grupo Ronda{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+  <h1 class="h3 mb-4">Ocorrências</h1>
+
+  <div class="row mb-4">
+    {% for status, total in resumo.items() %}
+      <div class="col-auto">
+        <span class="badge bg-secondary">{{ status }}: {{ total }}</span>
+      </div>
+    {% endfor %}
+  </div>
+
+  {% if not ocorrencias %}
+    <div class="alert alert-info">Nenhuma ocorrência registrada.</div>
+  {% endif %}
+
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>#</th><th>Origem</th><th>Tipo</th><th>Prioridade</th>
+        <th>Status</th><th>Aberto em</th><th></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for oc in ocorrencias %}
+        <tr>
+          <td>{{ oc.id }}</td>
+          <td><span class="badge bg-light text-dark">{{ oc.origem }}</span></td>
+          <td>{{ oc.tipo or "—" }}</td>
+          <td>{{ oc.prioridade }}</td>
+          <td>{{ oc.status }}</td>
+          <td>{{ oc.aberto_em.strftime("%d/%m %H:%M") if oc.aberto_em else "—" }}</td>
+          <td>
+            {% if oc.status == "aberta" %}
+              <button class="btn btn-sm btn-outline-primary"
+                      onclick="fetch('/api/ocorrencias/{{ oc.id }}/tratar', {method:'POST'}).then(()=>location.reload())">
+                Assumir
+              </button>
+            {% elif oc.status == "em_tratamento" %}
+              <button class="btn btn-sm btn-outline-success"
+                      onclick="fetch('/api/ocorrencias/{{ oc.id }}/encerrar', {method:'POST'}).then(()=>location.reload())">
+                Encerrar
+              </button>
+            {% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

@@ -501,12 +501,13 @@ def _registrar_ocorrencia_deteccao_v2(
     imagem_path: str | None,
     detectado_em: datetime,
 ) -> None:
-    """Equivalente v2 de _registrar_alerta — cria uma Ocorrencia (repositories_v2)."""
+    """Equivalente v2 de _registrar_alerta — cria uma Ocorrencia e notifica (repositories_v2)."""
     try:
         from repositories_v2.db_session import session_scope
         from repositories_v2.ronda_repository import RondaRepository
+        from services_v2.notificacao_service import NotificacaoService
         with session_scope() as session:
-            RondaRepository(session=session).registrar_ocorrencia_deteccao(
+            ocorrencia = RondaRepository(session=session).registrar_ocorrencia_deteccao(
                 nvr_id=nvr_id,
                 pessoas=pessoas,
                 local_preset=local_preset,
@@ -514,6 +515,8 @@ def _registrar_ocorrencia_deteccao_v2(
                 detectado_em=detectado_em,
                 ronda_id=ronda_id,
             )
+            if ocorrencia is not None:
+                NotificacaoService(session=session).notificar_ocorrencia(ocorrencia, resolucao=False)
     except Exception as e:
         print(f"[AVISO DB v2] registrar_ocorrencia_deteccao: {e}")
 
