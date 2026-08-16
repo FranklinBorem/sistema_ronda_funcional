@@ -134,6 +134,22 @@ class NvrRepository(BaseRepositoryV2):
             .all()
         )
 
+    def listar_cameras_ptz_por_unidade(self, unidade_id: int) -> list[Camera]:
+        """
+        Câmeras com capacidade PTZ e ao menos um preset, de todos os
+        NVRs/grupos de uma Unidade — a lista de trabalho da ronda
+        automatizada (Fase C da religação, ver core/ronda_multi_nvr.py:
+        executar_ronda_multi_v2).
+        """
+        return (
+            self.session.query(Camera)
+            .join(Nvr, Camera.nvr_id == Nvr.id)
+            .filter(Nvr.unidade_id == unidade_id)
+            .filter(Camera.capacidades["ptz"].as_boolean() == True)  # noqa: E712
+            .filter(Camera.presets.any())
+            .all()
+        )
+
     def buscar_camera(self, camera_id: int) -> Optional[Camera]:
         return self.session.get(Camera, camera_id)
 

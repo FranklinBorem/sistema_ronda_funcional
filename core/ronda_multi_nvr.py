@@ -855,8 +855,207 @@ def executar_ronda_nvr(
 
 
 # =========================================================
-# RELATÓRIO HTML CONSOLIDADO
+# ORQUESTRAÇÃO — SCHEMA NOVO (models_v2), Fase C da religação
 # =========================================================
+# NÃO VALIDADO CONTRA HARDWARE REAL — sem NVR/câmera físico disponível
+# neste ambiente de desenvolvimento. A lógica de PTZ/captura/análise
+# em si (mover_ptz, capturar_snapshot, analisar_imagem) é IDÊNTICA à
+# usada pelo caminho antigo já em produção — só a montagem da lista de
+# trabalho e a persistência de resultado mudam aqui. Testar com um NVR
+# real antes de usar em operação é o próximo passo, fora do alcance
+# deste ambiente.
+
+def executar_ronda_camera_v2(
+    cfg: NVRConfig,
+    nvr_id_real: int,
+    pasta_raiz: Path,
+    ronda_pai_id: int | None,
+    log_global: logging.Logger,
+) -> dict:
+    """
+    Equivalente v2 de executar_ronda_nvr — mesma lógica de PTZ/captura/
+    análise (inalterada), trocando apenas a persistência para
+    repositories_v2. `nvr_id_real` é o ID inteiro do Nvr (grupo/site)
+    dono da câmera — necessário porque cfg.id agora é o ID da própria
+    Camera (usado para nomear a pasta de evidências), não o do Nvr.
+    """
+    t_inicio   = time.time()
+    pasta_nvr  = pasta_raiz / cfg.id
+    pasta_imgs = pasta_nvr / "imagens"
+    pasta_imgs.mkdir(parents=True, exist_ok=True)
+
+    log = criar_logger(cfg.id, pasta_nvr)
+    log.info("=== INICIANDO RONDA v2 | Câmera: %s | IP: %s ===", cfg.nome, cfg.ip)
+
+    sessao = criar_sessao(cfg)
+
+    if not testar_autenticacao(sessao, cfg, log):
+        log.error("Falha na autenticação. Abortando câmera.")
+        _salvar_resultado_nvr_v2(ronda_pai_id, nvr_id_real, "erro")
+        return {
+            "id": cfg.id, "nome": cfg.nome, "ip": cfg.ip,
+            "erro": "Falha de autenticação",
+            "linhas": [], "invasoes": 0,
+            "duracao_s": int(time.time() - t_inicio),
+        }
+
+    linhas   = []
+    invasoes = 0
+
+    for preset, nome_local in cfg.presets.items():
+        log.info("--- Preset %d: %s ---", preset, nome_local)
+
+        if not mover_ptz(sessao, cfg, preset, log):
+            log.warning("Pulando '%s': falha PTZ.", nome_local)
+            continue
+
+        log.info("Aguardando estabilização (%ds)...", cfg.tempo_espera)
+        time.sleep(cfg.tempo_espera)
+
+        imagem = capturar_snapshot(sessao, cfg, pasta_imgs, nome_local, log)
+        if imagem is None:
+            continue
+
+        pessoas, imagem_anotada = analisar_imagem(imagem, log)
+        invasoes += pessoas
+
+        if pessoas > 0:
+            try:
+                try:
+                    pasta_rel = pasta_raiz.relative_to(Path("relatorios"))
+                except ValueError:
+                    pasta_rel = pasta_raiz
+
+                nome_img = imagem_anotada.name if imagem_anotada else f"{nome_local}.jpg"
+                imagem_path_banco = (
+                    pasta_rel / cfg.id / "imagens" / nome_img
+                ).as_posix()
+
+                _registrar_ocorrencia_deteccao_v2(
+                    ronda_id=ronda_pai_id,
+                    nvr_id=nvr_id_real,
+                    pessoas=pessoas,
+                    local_preset=nome_local,
+                    imagem_path=imagem_path_banco,
+                    detectado_em=datetime.now(),
+                )
+                log.info("Ocorrência registrada: %s (%d pessoa(s))", nome_local, pessoas)
+            except Exception as e:
+                log.warning("Não foi possível registrar ocorrência: %s", e)
+
+        linhas.append({
+            "horario":    datetime.now().strftime("%H:%M:%S"),
+            "nome_local": nome_local,
+            "status":     "INVASÃO DETECTADA" if pessoas > 0 else "NORMAL",
+            "classe_css": "alerta" if pessoas > 0 else "normal",
+            "pessoas":    pessoas,
+        })
+
+    duracao      = int(time.time() - t_inicio)
+    status_final = "com_alertas" if invasoes > 0 else "finalizada"
+    _salvar_resultado_nvr_v2(ronda_pai_id, nvr_id_real, status_final)
+
+    log.info("=== RONDA CÂMERA v2 FINALIZADA | Invasões: %d | Duração: %ds ===",
+              invasoes, duracao)
+
+    return {
+        "id":        cfg.id,
+        "nome":      cfg.nome,
+        "ip":        cfg.ip,
+        "erro":      None,
+        "linhas":    linhas,
+        "invasoes":  invasoes,
+        "duracao_s": duracao,
+    }
+
+
+def executar_ronda_multi_v2(
+    unidade_id: int,
+    monitor_nome: str = "Não informado",
+    turno: str = "Não informado",
+    pasta: str | None = None,
+    ronda_id: int | None = None,
+    max_workers: int | None = None,
+) -> None:
+    """
+    Equivalente v2 de executar_ronda_multi — busca câmeras PTZ com
+    preset de uma Unidade (em vez de todos os "Nvr" do schema antigo),
+    e delega a mesma lógica de PTZ/captura/análise já usada em
+    produção. Ver docstring da seção acima sobre a falta de validação
+    contra hardware real neste ambiente.
+    """
+    from repositories_v2.db_session import session_scope
+    from repositories_v2.nvr_repository import NvrRepository
+
+    with session_scope() as session:
+        cameras_db = NvrRepository(session=session).listar_cameras_ptz_por_unidade(unidade_id)
+        # (camera_id_str, nvr_id_real, NVRConfig) — resolvido dentro da sessão,
+        # antes dela fechar, pois _camera_v2_para_config acessa relationships
+        # (camera.nvr, camera.presets) que exigem sessão viva.
+        trabalho = [
+            (nvr_id := cam.nvr_id, _camera_v2_para_config(cam))
+            for cam in cameras_db
+        ]
+
+    if not trabalho:
+        print("❌ Nenhuma câmera PTZ com preset encontrada para esta unidade.")
+        return
+
+    if max_workers is None:
+        max_workers = len(trabalho)
+
+    timestamp  = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    pasta_raiz = Path(pasta) if pasta else Path("relatorios") / f"multi_{timestamp}"
+    pasta_raiz.mkdir(parents=True, exist_ok=True)
+
+    log_global = criar_logger("MULTI-V2", pasta_raiz)
+    log_global.info(
+        "=== RONDA MULTI v2 | Monitor: %s | Turno: %s | Câmeras: %d ===",
+        monitor_nome, turno, len(trabalho),
+    )
+
+    resultados_ordenados = []
+    futuros = {}
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        for nvr_id_real, cfg in trabalho:
+            f = executor.submit(
+                executar_ronda_camera_v2, cfg, nvr_id_real, pasta_raiz, ronda_id, log_global
+            )
+            futuros[f] = cfg.id
+
+        for futuro in as_completed(futuros):
+            cam_id_key = futuros[futuro]
+            try:
+                resultado = futuro.result()
+                resultados_ordenados.append(resultado)
+                log_global.info(
+                    "✅ Câmera %s concluída | Invasões: %d",
+                    resultado["nome"], resultado["invasoes"],
+                )
+            except Exception as e:
+                log_global.error("❌ Câmera %s lançou exceção: %s", cam_id_key, e)
+                resultados_ordenados.append({
+                    "id": cam_id_key, "nome": cam_id_key, "ip": "?",
+                    "erro": str(e), "linhas": [], "invasoes": 0, "duracao_s": 0,
+                })
+
+    ordem = {cfg.id: i for i, (_, cfg) in enumerate(trabalho)}
+    resultados_ordenados.sort(key=lambda r: ordem.get(r["id"], 999))
+
+    arquivo_html = gerar_relatorio_multi(
+        pasta_raiz, resultados_ordenados, monitor_nome, turno
+    )
+
+    total_invasoes = sum(r["invasoes"] for r in resultados_ordenados)
+    cameras_ok = [r for r in resultados_ordenados if not r.get("erro")]
+    status_pai = ("com_alertas" if total_invasoes > 0 else "finalizada") if cameras_ok else "erro"
+    _atualizar_ronda_pai_v2(ronda_id, status_pai)
+
+    log_global.info("=== MULTI-RONDA v2 FINALIZADA ===")
+    log_global.info("Invasões totais: %d", total_invasoes)
+    log_global.info("Relatório: %s", arquivo_html)
+    print(f"\n✅ Ronda finalizada. Relatório: {arquivo_html}")
 
 def gerar_relatorio_multi(
     pasta_raiz: Path,

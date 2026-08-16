@@ -18,5 +18,6 @@ os chamadores antigos deixarem de existir, remover a duplicação
 (arquivo antigo) vira um passo de limpeza explícito, não implícito.
 """
 from .isapi_client import ISAPIClient, descobrir_canais
+from .ronda_service import RondaService
 
-__all__ = ["ISAPIClient", "descobrir_canais"]
+__all__ = ["ISAPIClient", "descobrir_canais", "RondaService"]
