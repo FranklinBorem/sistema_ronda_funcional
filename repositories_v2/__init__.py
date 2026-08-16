@@ -15,5 +15,9 @@ from .base import BaseRepositoryV2
 from .usuario_repository import UsuarioRepository
 from .nvr_repository import NvrRepository
 from .ronda_repository import RondaRepository
+from .monitoramento_repository import MonitoramentoRepository
 
-__all__ = ["BaseRepositoryV2", "UsuarioRepository", "NvrRepository", "RondaRepository"]
+__all__ = [
+    "BaseRepositoryV2", "UsuarioRepository", "NvrRepository",
+    "RondaRepository", "MonitoramentoRepository",
+]

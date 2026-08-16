@@ -28,10 +28,11 @@ from .ocorrencia import Ocorrencia
 from .notificacao import Notificacao, Integracao
 from .auditoria import Auditoria
 from .plano import Plano
+from .monitoramento import NvrStatusLog, CameraStatusLog
 
 __all__ = [
     "Empresa", "Usuario", "UsuarioUnidade", "Unidade", "Area",
     "Nvr", "Camera", "Preset", "Ronda", "ResultadoRonda",
     "RegraDeteccao", "EventoIA", "Ocorrencia", "Notificacao",
-    "Integracao", "Auditoria", "Plano",
+    "Integracao", "Auditoria", "Plano", "NvrStatusLog", "CameraStatusLog",
 ]

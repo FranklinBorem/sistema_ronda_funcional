@@ -19,5 +19,6 @@ os chamadores antigos deixarem de existir, remover a duplicação
 """
 from .isapi_client import ISAPIClient, descobrir_canais
 from .ronda_service import RondaService
+from .conferencia_loop import iniciar_loop_v2
 
-__all__ = ["ISAPIClient", "descobrir_canais", "RondaService"]
+__all__ = ["ISAPIClient", "descobrir_canais", "RondaService", "iniciar_loop_v2"]
