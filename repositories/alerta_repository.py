@@ -17,7 +17,7 @@ from typing import Optional
 
 from sqlalchemy import desc, func
 
-from models.alerta import Alerta, StatusAlerta
+from models.alerta import Alerta, StatusAlerta, MotivoTratamento
 from .base import BaseRepository
 
 
@@ -62,12 +62,13 @@ class AlertaRepository(BaseRepository):
         novo_status: StatusAlerta,
         tratativa: str,
         responsavel: str,
+        motivo: MotivoTratamento | None = None,
     ) -> Optional[Alerta]:
         """Registra tratativa. Retorna None se o alerta não existir."""
         alerta = self.session.get(Alerta, alerta_id)
         if not alerta:
             return None
-        alerta.tratar(novo_status, tratativa, responsavel)
+        alerta.tratar(novo_status, tratativa, responsavel, motivo)
         return alerta
 
     def reabrir(self, alerta_id: int) -> Optional[Alerta]:
@@ -87,6 +88,7 @@ class AlertaRepository(BaseRepository):
     def listar(
         self,
         status: str | None = None,
+        motivo: str | None = None,
         ufv: str | None = None,
         nvr_id: str | None = None,
         data_inicio: str | None = None,
@@ -98,6 +100,9 @@ class AlertaRepository(BaseRepository):
         Retorna (alertas_da_página, total).
         Substitui _build_filtros() + queries de alarmes_routes.py.
         Só inclui detecções reais de pessoas (pessoas > 0).
+
+        `motivo` filtra dentro de status='tratado' ('confirmado' ou
+        'falso_positivo'); ignorado para outros status.
         """
         q = (
             self.session
@@ -107,6 +112,8 @@ class AlertaRepository(BaseRepository):
 
         if status and status != "todos":
             q = q.filter(Alerta.status == status)
+        if motivo and motivo != "todos":
+            q = q.filter(Alerta.motivo_tratamento == motivo)
         if ufv:
             q = q.filter(Alerta.ufv == ufv)
         if nvr_id:
@@ -155,8 +162,9 @@ class AlertaRepository(BaseRepository):
 
     def resumo(self) -> dict[str, int]:
         """
-        Retorna contadores por status para atualização em tempo real.
-        Substitui as 4 queries separadas de api_resumo() e central_alarmes().
+        Retorna contadores para atualização em tempo real.
+        'tratados' inclui confirmados + falsos positivos;
+        'falso_positivos' é o subconjunto de tratados marcado como tal.
         """
         rows = (
             self.session
@@ -166,19 +174,29 @@ class AlertaRepository(BaseRepository):
             .all()
         )
         base = {
-            StatusAlerta.PENDENTE.value:       0,
-            StatusAlerta.TRATADO.value:        0,
-            StatusAlerta.DETECCAO_FALSA.value: 0,
+            StatusAlerta.PENDENTE.value: 0,
+            StatusAlerta.TRATADO.value:  0,
         }
         for status, count in rows:
             base[status] = count
 
+        falso_positivos = (
+            self.session
+            .query(func.count(Alerta.id))
+            .filter(
+                Alerta.pessoas > 0,
+                Alerta.status == StatusAlerta.TRATADO.value,
+                Alerta.motivo_tratamento == MotivoTratamento.FALSO_POSITIVO.value,
+            )
+            .scalar()
+        ) or 0
+
         total = sum(base.values())
         return {
-            "total":            total,
-            "pendentes":        base[StatusAlerta.PENDENTE.value],
-            "tratados":         base[StatusAlerta.TRATADO.value],
-            "deteccoes_falsas": base[StatusAlerta.DETECCAO_FALSA.value],
+            "total":           total,
+            "pendentes":       base[StatusAlerta.PENDENTE.value],
+            "tratados":        base[StatusAlerta.TRATADO.value],
+            "falso_positivos": falso_positivos,
         }
 
     # ── Métricas para dashboard ────────────────────────────────────────────

@@ -1,13 +1,18 @@
 """
-routes/nvr.py — Cadastro e gerenciamento de câmeras PTZ.
+routes/nvr.py — Cadastro e gerenciamento único de NVRs / câmeras.
 
-Substitui nvr_routes.py (SQLite puro).
-Usa NvrRepository + SQLAlchemy. Sem sqlite3, sem get_db(), sem nvr_db.
+Fonte de dados única para todo o sistema: PTZ, Conferência, polling ISAPI,
+relatórios, WhatsApp e qualquer outra parte do app que precise de dados de
+equipamentos deve consultar via NvrRepository / models.nvr.Nvr — nunca ter
+seu próprio cadastro paralelo.
 """
 
 from __future__ import annotations
 
-from flask import Blueprint, flash, redirect, render_template, request, url_for, jsonify
+from flask import (
+    Blueprint, Response, flash, redirect, render_template,
+    request, url_for, jsonify,
+)
 
 from core.auth import login_required
 from repositories.nvr_repository import NvrRepository
@@ -31,6 +36,14 @@ def _parse_presets(form) -> dict[int, str]:
             except ValueError:
                 pass
     return result
+
+
+def _parse_conexao(form) -> dict:
+    """Extrai os campos de conexão HTTP/ISAPI do formulário."""
+    return {
+        "porta":     int(form.get("porta", 80)),
+        "use_https": "use_https" in form,
+    }
 
 
 # ── Listagem ───────────────────────────────────────────────────────────────
@@ -60,6 +73,7 @@ def nvr_novo():
         timeout = int(request.form.get("timeout", 10))
         ativo   = bool(request.form.get("ativo"))
         presets = _parse_presets(request.form)
+        conexao = _parse_conexao(request.form)
 
         if not all([nvr_id, nome, ip, senha]):
             flash("Preencha todos os campos obrigatórios.", "warning")
@@ -70,8 +84,9 @@ def nvr_novo():
                 nvr_id=nvr_id, nome=nome, ip=ip, usuario=usuario, senha=senha,
                 ptz_channel=ptz, snapshot_channel=snap, tempo_espera=espera,
                 timeout=timeout, ativo=ativo, presets=presets, site=site,
+                **conexao,
             )
-            flash(f"PTZ '{nome}' cadastrada com sucesso.", "success")
+            flash(f"NVR '{nome}' cadastrado com sucesso.", "success")
             return redirect(url_for("nvr.nvr_listar"))
         except ValueError as e:
             flash(str(e), "danger")
@@ -88,7 +103,7 @@ def nvr_novo():
 def nvr_editar(nvr_id: str):
     nvr = _repo.buscar_por_nvr_id(nvr_id)
     if not nvr:
-        flash("PTZ não encontrada.", "danger")
+        flash("NVR não encontrado.", "danger")
         return redirect(url_for("nvr.nvr_listar"))
 
     if request.method == "POST":
@@ -103,14 +118,16 @@ def nvr_editar(nvr_id: str):
         timeout = int(request.form.get("timeout", 10))
         ativo   = bool(request.form.get("ativo"))
         presets = _parse_presets(request.form)
+        conexao = _parse_conexao(request.form)
 
         try:
             _repo.atualizar(
                 nvr_id=nvr_id, nome=nome, ip=ip, usuario=usuario, senha=senha,
                 ptz_channel=ptz, snapshot_channel=snap, tempo_espera=espera,
                 timeout=timeout, ativo=ativo, presets=presets, site=site,
+                **conexao,
             )
-            flash(f"PTZ '{nome}' atualizada.", "success")
+            flash(f"NVR '{nome}' atualizado.", "success")
             return redirect(url_for("nvr.nvr_listar"))
         except Exception as e:
             flash(f"Erro: {e}", "danger")
@@ -136,8 +153,62 @@ def nvr_toggle(nvr_id: str):
 @login_required
 def nvr_excluir(nvr_id: str):
     _repo.excluir(nvr_id)
-    flash("PTZ removida.", "info")
+    flash("NVR removido.", "info")
     return redirect(url_for("nvr.nvr_listar"))
+
+
+# ── Importação em lote via CSV ──────────────────────────────────────────────
+
+@nvr_bp.route("/nvrs/importar", methods=["GET", "POST"])
+@login_required
+def nvr_importar():
+    if request.method == "GET":
+        return render_template("conferencia/nvrs_importar.html")
+
+    arquivo = request.files.get("arquivo")
+    if not arquivo or not arquivo.filename:
+        flash("Nenhum arquivo enviado.", "warning")
+        return redirect(url_for("nvr.nvr_importar"))
+
+    try:
+        texto = arquivo.read().decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            arquivo.seek(0)
+            texto = arquivo.read().decode("latin-1")
+        except Exception:
+            flash("Não foi possível decodificar o arquivo. Use UTF-8 ou Latin-1.", "danger")
+            return redirect(url_for("nvr.nvr_importar"))
+
+    criados, ignorados, erros = _repo.importar_csv(texto)
+
+    if criados:
+        flash(f"✅ {len(criados)} NVR(s) cadastrados: {', '.join(criados)}", "success")
+    if ignorados:
+        flash(f"⚠️ {len(ignorados)} já existiam e foram ignorados: {', '.join(ignorados)}", "warning")
+    for e in erros:
+        flash(e, "danger")
+    if not criados and not ignorados and not erros:
+        flash("Nenhuma linha válida encontrada no arquivo.", "warning")
+
+    return redirect(url_for("nvr.nvr_listar"))
+
+
+@nvr_bp.route("/nvrs/importar/modelo")
+@login_required
+def nvr_importar_modelo():
+    """Retorna um CSV modelo para o usuário baixar e preencher."""
+    linhas = [
+        "nvr_id;nome;site;ip;porta;usuario;senha;use_https;ativo",
+        "nvr_altair_01;UFV Altair - NVR 01;Altair SP;10.38.10.202;80;admin;senha123;0;1",
+        "nvr_altair_02;UFV Altair - NVR 02;Altair SP;10.38.10.203;80;admin;senha123;0;1",
+        "nvr_sp_dome_01;Usina SP - Dome 01;São Paulo SP;192.168.1.100;8080;admin;outrasenha;0;1",
+    ]
+    return Response(
+        "\n".join(linhas),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=modelo_nvrs.csv"},
+    )
 
 
 # ── API ────────────────────────────────────────────────────────────────────

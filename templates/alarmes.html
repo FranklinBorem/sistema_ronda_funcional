@@ -17,13 +17,13 @@
         <div style="font-size:32px; font-weight:700; color:#d4a000;" id="card-pendente">{{ pendentes }}</div>
         <div style="font-size:12px; color:#6c757d; margin-top:4px;">⚠️ Pendentes</div>
     </div>
-    <div class="card" style="text-align:center; margin-bottom:0; border-top:3px solid #dc3545;">
-        <div style="font-size:32px; font-weight:700; color:#dc3545;" id="card-deteccao-falsa">{{ deteccoes_falsas|default(0) }}</div>
-        <div style="font-size:12px; color:#6c757d; margin-top:4px;">Detecção Falsa</div>
-    </div>
     <div class="card" style="text-align:center; margin-bottom:0; border-top:3px solid #28a745;">
         <div style="font-size:32px; font-weight:700; color:#28a745;" id="card-tratado">{{ tratados }}</div>
         <div style="font-size:12px; color:#6c757d; margin-top:4px;">✅ Tratados</div>
+    </div>
+    <div class="card" style="text-align:center; margin-bottom:0; border-top:3px solid #6c757d;">
+        <div style="font-size:32px; font-weight:700; color:#adb5bd;" id="card-falso-positivo">{{ falso_positivos }}</div>
+        <div style="font-size:12px; color:#6c757d; margin-top:4px;">Falso Positivo <span style="opacity:.6;">(dentro de Tratados)</span></div>
     </div>
 </div>
 
@@ -32,11 +32,18 @@
     <div style="display:flex; flex-wrap:wrap; gap:1rem; align-items:flex-end;">
         <div>
             <label style="font-size:12px; font-weight:700; color:#888; display:block; margin-bottom:4px;">STATUS</label>
-            <select id="f-status" class="form-select">
+            <select id="f-status" class="form-select" onchange="onStatusFiltroChange()">
                 <option value="todos">Todos</option>
                 <option value="pendente" selected>Pendente</option>
                 <option value="tratado">Tratado</option>
-                <option value="deteccao_falsa">Detecção Falsa</option>
+            </select>
+        </div>
+        <div id="f-motivo-wrap" style="display:none;">
+            <label style="font-size:12px; font-weight:700; color:#888; display:block; margin-bottom:4px;">SUBCATEGORIA</label>
+            <select id="f-motivo" class="form-select">
+                <option value="todos" selected>Todas</option>
+                <option value="confirmado">Confirmado</option>
+                <option value="falso_positivo">Falso Positivo</option>
             </select>
         </div>
         <div>
@@ -133,12 +140,21 @@
             <label style="font-size:12px; font-weight:700; color:#888; display:block; margin-bottom:6px;">DESCRIÇÃO DA TRATATIVA</label>
             <textarea id="modal-tratativa" style="width:100%; padding:10px; border:1px solid #2a2a2a; border-radius:6px;
                       font-size:13px; min-height:80px; resize:vertical; background:#181818; color:#e0e0e0;" placeholder="Descreva o que foi verificado..."></textarea>
+
             <label style="font-size:12px; font-weight:700; color:#888; display:block; margin:12px 0 6px;">STATUS</label>
             <input type="hidden" id="modal-status" value="pendente">
             <div class="status-toggle" id="status-toggle">
                 <button type="button" class="status-option status-tratado" data-status="tratado" onclick="setModalStatus('tratado')">Tratado</button>
                 <button type="button" class="status-option status-pendente" data-status="pendente" onclick="setModalStatus('pendente')">Pendente</button>
-                <button type="button" class="status-option status-falsa" data-status="deteccao_falsa" onclick="setModalStatus('deteccao_falsa')">Detecção Falsa</button>
+            </div>
+
+            <div id="motivo-toggle-wrap" style="display:none; margin-top:12px;">
+                <label style="font-size:12px; font-weight:700; color:#888; display:block; margin-bottom:6px;">SUBCATEGORIA</label>
+                <input type="hidden" id="modal-motivo" value="confirmado">
+                <div class="motivo-toggle" id="motivo-toggle">
+                    <button type="button" class="motivo-option motivo-confirmado" data-motivo="confirmado" onclick="setModalMotivo('confirmado')">Confirmado</button>
+                    <button type="button" class="motivo-option motivo-falso-positivo" data-motivo="falso_positivo" onclick="setModalMotivo('falso_positivo')">Falso Positivo</button>
+                </div>
             </div>
 
             <label style="font-size:12px; font-weight:700; color:#888; display:block; margin:12px 0 6px;">MOTIVO RÁPIDO</label>
@@ -163,20 +179,27 @@
     min-width:130px;
 }
 .form-select:focus { border-color:#f5c400; box-shadow:0 0 0 3px rgba(245,196,0,0.12); }
-.badge-pendente  { background:rgba(220,53,69,0.2); color:#f88; border:1px solid rgba(220,53,69,0.4); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
-.badge-em_tratativa { background:rgba(245,196,0,0.15); color:#f5c400; border:1px solid rgba(245,196,0,0.35); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
-.badge-tratado   { background:rgba(25,135,84,0.2); color:#6ee7a0; border:1px solid rgba(25,135,84,0.4); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
-.badge-deteccao_falsa { background:rgba(108,117,125,0.22); color:#d7dde3; border:1px solid rgba(108,117,125,0.45); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
-.row-pendente td:first-child { border-left:3px solid rgba(220,53,69,0.8); }
-.row-em_tratativa td:first-child { border-left:3px solid rgba(245,196,0,0.8); }
-.row-tratado td:first-child { border-left:3px solid rgba(25,135,84,0.8); }
-.row-deteccao_falsa td:first-child { border-left:3px solid rgba(108,117,125,0.8); }
-.status-toggle { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-top:6px; }
+
+.badge-pendente { background:rgba(220,53,69,0.2); color:#f88; border:1px solid rgba(220,53,69,0.4); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-tratado  { background:rgba(25,135,84,0.2); color:#6ee7a0; border:1px solid rgba(25,135,84,0.4); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+.badge-tratado-fp { background:rgba(108,117,125,0.22); color:#d7dde3; border:1px solid rgba(108,117,125,0.45); padding:3px 9px; border-radius:20px; font-size:11px; font-weight:600; }
+
+.row-pendente td:first-child   { border-left:3px solid rgba(220,53,69,0.8); }
+.row-tratado td:first-child    { border-left:3px solid rgba(25,135,84,0.8); }
+.row-tratado-fp td:first-child { border-left:3px solid rgba(108,117,125,0.8); }
+
+.status-toggle { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-top:6px; }
 .status-option { border:1px solid #2a2a2a; border-radius:6px; background:#181818; color:#e0e0e0; padding:10px 12px; font-size:13px; font-weight:700; cursor:pointer; }
 .status-option:hover { border-color:#f5c400; }
 .status-option.active.status-tratado { background:rgba(25,135,84,0.18); color:#6ee7a0; border-color:rgba(25,135,84,0.65); }
 .status-option.active.status-pendente { background:rgba(245,196,0,0.16); color:#f5c400; border-color:rgba(245,196,0,0.65); }
-.status-option.active.status-falsa { background:rgba(220,53,69,0.18); color:#ff8a95; border-color:rgba(220,53,69,0.65); }
+
+.motivo-toggle { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.motivo-option { border:1px solid #2a2a2a; border-radius:6px; background:#181818; color:#e0e0e0; padding:9px 12px; font-size:12px; font-weight:700; cursor:pointer; }
+.motivo-option:hover { border-color:#f5c400; }
+.motivo-option.active.motivo-confirmado { background:rgba(25,135,84,0.18); color:#6ee7a0; border-color:rgba(25,135,84,0.65); }
+.motivo-option.active.motivo-falso-positivo { background:rgba(108,117,125,0.22); color:#d7dde3; border-color:rgba(108,117,125,0.5); }
+
 .motivos-wrap { display:flex; flex-wrap:wrap; gap:8px; }
 .motivo-chip { border:1px solid #2a2a2a; border-radius:20px; background:#181818; color:#d0d0d0; padding:7px 11px; font-size:12px; cursor:pointer; }
 .motivo-chip:hover { border-color:#f5c400; color:#fff; }
@@ -187,15 +210,10 @@
 let paginaAtual = 1;
 let totalPaginas = 1;
 let alertaIdAtivo = null;
-const STATUS_LABELS = { pendente:'Pendente', em_tratativa:'Em tratativa', tratado:'Tratado', deteccao_falsa:'Detecção Falsa' };
-const MOTIVOS_STATUS = {
-    tratado: [
-        'Vigia realizando ronda.',
-        'Presença autorizada.',
-        'Ocorrência verificada e tratada.',
-        'Responsável acionado.',
-        'Sem risco após verificação.'
-    ],
+
+const STATUS_LABELS = { pendente:'Pendente', tratado:'Tratado' };
+
+const MOTIVOS_RAPIDOS = {
     pendente: [
         'Imagem inconclusiva.',
         'Aguardando confirmação.',
@@ -203,7 +221,14 @@ const MOTIVOS_STATUS = {
         'Monitoramento em andamento.',
         'Aguardando nova verificação.'
     ],
-    deteccao_falsa: [
+    tratado_confirmado: [
+        'Vigia realizando ronda.',
+        'Presença autorizada.',
+        'Ocorrência verificada e tratada.',
+        'Responsável acionado.',
+        'Sem risco após verificação.'
+    ],
+    tratado_falso_positivo: [
         'Detecção falsa por sombra/reflexo.',
         'Detecção falsa por vegetação.',
         'Detecção falsa por animal.',
@@ -219,24 +244,49 @@ document.addEventListener('DOMContentLoaded', () => {
     setInterval(() => { atualizarCards(); if (paginaAtual===1) carregarAlertas(false); }, 30000);
 });
 
+// ── Status / Motivo (modal) ────────────────────────────────────────────────
+
 function setModalStatus(status, sugerir=true) {
-    const normalizado = ['tratado', 'pendente', 'deteccao_falsa'].includes(status) ? status : 'pendente';
+    const normalizado = ['tratado','pendente'].includes(status) ? status : 'pendente';
     document.getElementById('modal-status').value = normalizado;
     document.querySelectorAll('.status-option').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.status === normalizado);
     });
-    motivosSelecionados = [];
-    renderMotivos(normalizado);
-    if (sugerir && !document.getElementById('modal-tratativa').value.trim()) {
-        const primeiro = MOTIVOS_STATUS[normalizado]?.[0] || '';
-        document.getElementById('modal-tratativa').value = primeiro;
+
+    const motivoWrap = document.getElementById('motivo-toggle-wrap');
+    if (normalizado === 'tratado') {
+        motivoWrap.style.display = 'block';
+        const motivoAtual = document.getElementById('modal-motivo').value || 'confirmado';
+        setModalMotivo(motivoAtual, sugerir);
+    } else {
+        motivoWrap.style.display = 'none';
+        document.getElementById('modal-motivo').value = '';
+        motivosSelecionados = [];
+        renderMotivos('pendente');
+        if (sugerir && !document.getElementById('modal-tratativa').value.trim()) {
+            document.getElementById('modal-tratativa').value = MOTIVOS_RAPIDOS.pendente[0] || '';
+        }
     }
 }
 
-function renderMotivos(status) {
+function setModalMotivo(motivo, sugerir=true) {
+    const normalizado = ['confirmado','falso_positivo'].includes(motivo) ? motivo : 'confirmado';
+    document.getElementById('modal-motivo').value = normalizado;
+    document.querySelectorAll('.motivo-option').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.motivo === normalizado);
+    });
+    motivosSelecionados = [];
+    const chave = `tratado_${normalizado}`;
+    renderMotivos(chave);
+    if (sugerir && !document.getElementById('modal-tratativa').value.trim()) {
+        document.getElementById('modal-tratativa').value = MOTIVOS_RAPIDOS[chave]?.[0] || '';
+    }
+}
+
+function renderMotivos(chave) {
     const wrap = document.getElementById('motivos-wrap');
     if (!wrap) return;
-    const motivos = MOTIVOS_STATUS[status] || [];
+    const motivos = MOTIVOS_RAPIDOS[chave] || [];
     wrap.innerHTML = motivos.map(motivo => `
         <button type="button" class="motivo-chip" data-motivo="${motivo}" onclick="toggleMotivo(this)">${motivo.replace(/\.$/, '')}</button>
     `).join('');
@@ -254,9 +304,18 @@ function toggleMotivo(btn) {
         document.getElementById('modal-tratativa').value = motivosSelecionados.join(' ');
     }
 }
+
+// ── Filtros ─────────────────────────────────────────────────────────────
+
+function onStatusFiltroChange() {
+    const ehTratado = document.getElementById('f-status').value === 'tratado';
+    document.getElementById('f-motivo-wrap').style.display = ehTratado ? 'block' : 'none';
+}
+
 function getFiltros() {
     return {
         status:      document.getElementById('f-status').value,
+        motivo:      document.getElementById('f-motivo').value,
         ufv:         document.getElementById('f-ufv').value,
         nvr:         document.getElementById('f-nvr').value,
         data_inicio: document.getElementById('f-data-inicio').value,
@@ -268,6 +327,8 @@ function aplicarFiltros() { paginaAtual = 1; carregarAlertas(); }
 
 function limparFiltros() {
     document.getElementById('f-status').value = 'todos';
+    document.getElementById('f-motivo').value = 'todos';
+    document.getElementById('f-motivo-wrap').style.display = 'none';
     document.getElementById('f-ufv').value = '';
     document.getElementById('f-nvr').value = '';
     document.getElementById('f-data-inicio').value = '';
@@ -282,6 +343,7 @@ async function carregarAlertas(loading=true) {
 
     const f = getFiltros();
     const p = new URLSearchParams({ page: paginaAtual, per_page: 20, status: f.status, ufv: f.ufv, nvr: f.nvr });
+    if (f.status === 'tratado' && f.motivo && f.motivo !== 'todos') p.set('motivo', f.motivo);
     if (f.data_inicio) p.set('data_inicio', f.data_inicio);
     if (f.data_fim)    p.set('data_fim',    f.data_fim);
 
@@ -296,6 +358,16 @@ async function carregarAlertas(loading=true) {
     }
 }
 
+function statusBadgeInfo(a) {
+    if (a.status === 'tratado' && a.motivo_tratamento === 'falso_positivo') {
+        return { cls: 'badge-tratado-fp', label: 'Tratado · Falso Positivo', row: 'row-tratado-fp' };
+    }
+    if (a.status === 'tratado') {
+        return { cls: 'badge-tratado', label: 'Tratado', row: 'row-tratado' };
+    }
+    return { cls: 'badge-pendente', label: 'Pendente', row: 'row-pendente' };
+}
+
 function renderTabela(alertas, total) {
     const tbody = document.getElementById('tbody-alertas');
     document.getElementById('tabela-count').textContent = `${total} registro(s)`;
@@ -305,18 +377,21 @@ function renderTabela(alertas, total) {
         return;
     }
 
-    tbody.innerHTML = alertas.map(a => `
-    <tr class="row-${a.status}">
+    tbody.innerHTML = alertas.map(a => {
+        const badge = statusBadgeInfo(a);
+        return `
+    <tr class="${badge.row}">
         <td style="font-size:12px;color:#6c757d;">#${a.id}</td>
         <td style="font-size:12px;white-space:nowrap;">${(a.detectado_em||'—').slice(0,16).replace('T',' ')}</td>
         <td>${a.ufv}</td>
         <td style="font-weight:600;">${a.nvr_nome}</td>
         <td>${a.local_preset}</td>
         <td style="text-align:center;font-weight:700;color:${a.pessoas>0?'#dc3545':'#28a745'};">👤 ${a.pessoas}</td>
-        <td><span class="badge-${a.status}">${STATUS_LABELS[a.status]||a.status}</span></td>
+        <td><span class="${badge.cls}">${badge.label}</span></td>
         <td style="font-size:12px;">${a.responsavel||'—'}</td>
         <td><button class="btn btn-primary btn-sm" onclick="abrirModal(${a.id})">Ver / Tratar</button></td>
-    </tr>`).join('');
+    </tr>`;
+    }).join('');
 }
 
 function renderPaginacao(total, page, pages) {
@@ -363,6 +438,7 @@ async function abrirModal(id) {
         }
         // -------------------------------------------
 
+        const badge = statusBadgeInfo(a);
         const dataFmt = (a.detectado_em||'—').slice(0,16).replace('T',' ');
         document.getElementById('modal-info-grid').innerHTML = `
             <div><label style="font-size:11px;font-weight:700;color:#888;">UFV</label><div style="font-size:13px;">${a.ufv||'—'}</div></div>
@@ -370,11 +446,15 @@ async function abrirModal(id) {
             <div><label style="font-size:11px;font-weight:700;color:#888;">LOCAL</label><div style="font-size:13px;">${a.local_preset}</div></div>
             <div><label style="font-size:11px;font-weight:700;color:#888;">PESSOAS</label><div style="font-size:13px;font-weight:700;color:#dc3545;">👤 ${a.pessoas}</div></div>
             <div><label style="font-size:11px;font-weight:700;color:#888;">DETECTADO EM</label><div style="font-size:13px;">${dataFmt}</div></div>
-            <div><label style="font-size:11px;font-weight:700;color:#888;">STATUS</label><div><span class="badge-${a.status}">${STATUS_LABELS[a.status]||a.status}</span></div></div>
+            <div><label style="font-size:11px;font-weight:700;color:#888;">STATUS</label><div><span class="${badge.cls}">${badge.label}</span></div></div>
             ${a.tratativa?`<div style="grid-column:1/-1"><label style="font-size:11px;font-weight:700;color:#888;">TRATATIVA</label><div style="font-size:13px;">${a.tratativa}</div></div>`:''}`;
 
         document.getElementById('modal-tratativa').value = a.tratativa||'';
-        setModalStatus(['tratado', 'pendente', 'deteccao_falsa'].includes(a.status) ? a.status : 'pendente', false);
+        const statusInicial = a.status === 'tratado' ? 'tratado' : 'pendente';
+        setModalStatus(statusInicial, false);
+        if (statusInicial === 'tratado') {
+            setModalMotivo(a.motivo_tratamento || 'confirmado', false);
+        }
         document.getElementById('btn-reabrir').style.display = a.status!=='pendente'?'inline-flex':'none';
         document.getElementById('modal-overlay').style.display = 'flex';
     } catch(e) { toast('Erro ao carregar: '+e.message, 'error'); }
@@ -391,10 +471,11 @@ async function salvarTratativa() {
     if (!alertaIdAtivo) return;
     const tratativa = document.getElementById('modal-tratativa').value.trim();
     const status    = document.getElementById('modal-status').value;
+    const motivo    = document.getElementById('modal-motivo').value;
     try {
         const data = await fetch(`/api/alarmes/${alertaIdAtivo}/tratar`,{
             method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({tratativa,status})
+            body: JSON.stringify({tratativa,status,motivo})
         }).then(r=>r.json());
         if (data.ok) { toast('Tratativa salva!','ok'); fecharModal(); carregarAlertas(false); atualizarCards(); }
         else toast('Erro: '+(data.erro||'falha'),'error');
@@ -412,8 +493,8 @@ async function atualizarCards() {
         const d = await fetch('/api/alarmes/resumo').then(r=>r.json());
         document.getElementById('card-total').textContent    = d.total;
         document.getElementById('card-pendente').textContent = d.pendentes;
-        document.getElementById('card-deteccao-falsa').textContent = d.deteccoes_falsas ?? 0;
         document.getElementById('card-tratado').textContent  = d.tratados;
+        document.getElementById('card-falso-positivo').textContent = d.falso_positivos ?? 0;
     } catch(_) {}
 }
 
@@ -434,5 +515,3 @@ document.addEventListener('keydown', e => { if(e.key==='Escape') fecharModal(); 
 </script>
 
 {% endblock %}
-
-

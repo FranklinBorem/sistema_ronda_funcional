@@ -1,12 +1,20 @@
 """
-models/nvr.py — Cadastro de NVRs / speed domes e seus presets.
+models/nvr.py — Cadastro único de NVRs / speed domes e seus presets.
 
 Tabelas:
-    nvrs         — configuracao de cada speed dome/NVR
+    nvrs         — configuracao de cada speed dome/NVR (fonte única de dados
+                   de equipamentos para todo o sistema: PTZ, Conferência,
+                   polling ISAPI, WhatsApp, relatórios, etc.)
     nvr_presets  — presets numerados de cada NVR (1:Portao, 2:Skid, ...)
+
+Histórico: esta tabela unifica o que antes eram dois cadastros separados
+(`nvrs` do módulo PTZ e `nvr_monitorado` do módulo Conferência). Os campos
+`porta`, `use_https` e `criado_em` vieram de `nvr_monitorado`.
 """
 
 from __future__ import annotations
+
+from datetime import datetime
 
 from extensions import db
 
@@ -15,12 +23,11 @@ from extensions import db
 
 class Nvr(db.Model):
     """
-    Configuracao de um NVR / speed dome.
-    Substitui o antigo cadastro via nvr_speed_domes.csv/xlsx.
+    Configuracao de um NVR / speed dome — fonte única para todo o sistema.
 
     IMPORTANTE: a tabela real ja existente no banco usa `id` (integer,
     autoincremento) como chave tecnica e `nvr_id` (string) como o
-    identificador de negocio (ex.: "bes2_dome_1", "altair_dome_1"). E o
+    identificador de negocio (ex.: "bes2_dome_01", "altair_dome_01"). E o
     `nvr_id` que e referenciado pela FK em nvr_presets, nao o `id`.
     """
     __tablename__ = "nvrs"
@@ -34,6 +41,10 @@ class Nvr(db.Model):
     ip: db.Mapped[str] = db.mapped_column(db.String(60), nullable=False)
     usuario: db.Mapped[str] = db.mapped_column(db.String(60), nullable=False, default="admin")
     senha: db.Mapped[str] = db.mapped_column(db.String(200), nullable=False, default="")
+
+    # ── Conexão HTTP/ISAPI (vindo do antigo nvr_monitorado) ──────────────
+    porta: db.Mapped[int] = db.mapped_column(db.Integer, nullable=False, default=80)
+    use_https: db.Mapped[bool] = db.mapped_column(db.Boolean, nullable=False, default=False)
 
     # ── PTZ / Snapshot ───────────────────────────────────────────────────
     # Canal usado para comandos PTZ (goto preset). Hikvision tipicamente
@@ -51,6 +62,7 @@ class Nvr(db.Model):
     timeout: db.Mapped[int] = db.mapped_column(db.Integer, nullable=False, default=10)
 
     ativo: db.Mapped[bool] = db.mapped_column(db.Boolean, nullable=False, default=True)
+    criado_em: db.Mapped[datetime] = db.mapped_column(db.DateTime, default=datetime.utcnow)
 
     # ── Relacionamentos ────────────────────────────────────────────────
     # A FK em nvr_presets aponta para nvrs.nvr_id (string de negocio),
@@ -76,6 +88,8 @@ class Nvr(db.Model):
             "site": self.site,
             "nome": self.nome,
             "ip": self.ip,
+            "porta": self.porta,
+            "use_https": self.use_https,
             "usuario": self.usuario,
             "ptz_channel": self.ptz_channel,
             "snapshot_channel": self.snapshot_channel,
@@ -83,6 +97,7 @@ class Nvr(db.Model):
             "tempo_espera": self.tempo_espera,
             "timeout": self.timeout,
             "ativo": self.ativo,
+            "criado_em": self.criado_em.isoformat() if self.criado_em else None,
         }
 
 

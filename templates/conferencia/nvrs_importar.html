@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <h1>Importar NVRs em Lote</h1>
-    <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn btn-primary btn-sm">← Voltar</a>
+    <a href="{{ url_for('nvr.nvr_listar') }}" class="btn btn-primary btn-sm">← Voltar</a>
 </div>
 
 <style>
@@ -210,7 +210,7 @@
                 </div>
 
                 <div class="submit-row">
-                    <a href="{{ url_for('conferencia.nvrs_importar_modelo') }}"
+                    <a href="{{ url_for('nvr.nvr_importar_modelo') }}"
                        class="btn btn-secondary btn-sm">
                         ⬇ Baixar CSV modelo
                     </a>

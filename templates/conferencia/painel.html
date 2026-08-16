@@ -309,7 +309,7 @@
     <div class="conf-subtitle">Status em tempo real via Hikvision ISAPI · Digest Auth</div>
   </div>
   <div style="display:flex;gap:.5rem;align-items:center;">
-    <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn-logs">🗄 Gerenciar NVRs</a>
+    <a href="{{ url_for('nvr.nvr_listar') }}" class="btn-logs">🗄 Gerenciar NVRs</a>
     <a href="{{ url_for('conferencia.relatorio') }}" class="btn-logs">📊 Relatório</a>
     <button class="btn-logs" id="btnLogs" onclick="toggleLogs()">⚠ Eventos</button>
     <button class="btn-poll" id="btnPoll" onclick="carregarStatus()">

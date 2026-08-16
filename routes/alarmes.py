@@ -15,7 +15,7 @@ from flask import (
 )
 
 from core.auth import login_required
-from models.alerta import StatusAlerta
+from models.alerta import StatusAlerta, MotivoTratamento
 from repositories import AlertaRepository
 
 alarmes_bp = Blueprint("alarmes", __name__)
@@ -31,16 +31,16 @@ def _repo() -> AlertaRepository:
 @alarmes_bp.route("/alarmes")
 @login_required
 def central_alarmes():
-    repo    = _repo()
-    resumo  = repo.resumo()
+    repo   = _repo()
+    resumo = repo.resumo()
     return render_template(
         "alarmes.html",
         ufvs=repo.listar_ufvs(),
         nvrs=repo.listar_nvrs(),
         total=resumo["total"],
         pendentes=resumo["pendentes"],
-        deteccoes_falsas=resumo["deteccoes_falsas"],
         tratados=resumo["tratados"],
+        falso_positivos=resumo["falso_positivos"],
     )
 
 
@@ -52,6 +52,7 @@ def api_listar_alertas():
     args = request.args
     alertas, total = _repo().listar(
         status=args.get("status"),
+        motivo=args.get("motivo"),
         ufv=args.get("ufv"),
         nvr_id=args.get("nvr"),
         data_inicio=args.get("data_inicio"),
@@ -88,20 +89,27 @@ def api_tratar_alerta(alerta_id: int):
     data       = request.get_json(force=True) or {}
     tratativa  = (data.get("tratativa") or "").strip()
     status_raw = (data.get("status") or "pendente").strip().lower()
+    motivo_raw = (data.get("motivo") or "").strip().lower()
 
-    # Normaliza status recebido para o enum
-    if "falsa" in status_raw:
-        novo_status = StatusAlerta.DETECCAO_FALSA
-    elif "tratado" in status_raw:
+    if "tratado" in status_raw or "falsa" in status_raw:
         novo_status = StatusAlerta.TRATADO
     elif "pendente" in status_raw:
         novo_status = StatusAlerta.PENDENTE
     else:
         return jsonify({"erro": "Status inválido"}), 400
 
+    motivo = None
+    if novo_status == StatusAlerta.TRATADO:
+        # "falsa"/"falso" cobre tanto o front novo (campo motivo) quanto
+        # uma eventual chamada antiga que ainda mande status="deteccao_falsa"
+        if "falsa" in status_raw or "falso" in motivo_raw:
+            motivo = MotivoTratamento.FALSO_POSITIVO
+        else:
+            motivo = MotivoTratamento.CONFIRMADO
+
     responsavel = session.get("monitor_nome", "Desconhecido")
     repo        = _repo()
-    alerta      = repo.tratar(alerta_id, novo_status, tratativa, responsavel)
+    alerta      = repo.tratar(alerta_id, novo_status, tratativa, responsavel, motivo)
 
     if not alerta:
         return jsonify({"erro": "Alerta não encontrado"}), 404
@@ -109,7 +117,11 @@ def api_tratar_alerta(alerta_id: int):
     from extensions import db
     db.session.commit()
 
-    return jsonify({"ok": True, "status": alerta.status})
+    return jsonify({
+        "ok": True,
+        "status": alerta.status,
+        "motivo_tratamento": alerta.motivo_tratamento,
+    })
 
 
 # ── API — reabrir ─────────────────────────────────────────────────────────
@@ -132,7 +144,4 @@ def api_reabrir_alerta(alerta_id: int):
 @alarmes_bp.route("/api/alarmes/resumo")
 @login_required
 def api_resumo():
-    resumo = _repo().resumo()
-    # Mantém chave "tratando" para compatibilidade com o JS existente
-    resumo["tratando"] = resumo["deteccoes_falsas"]
-    return jsonify(resumo)
+    return jsonify(_repo().resumo())

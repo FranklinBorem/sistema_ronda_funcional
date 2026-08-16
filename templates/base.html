@@ -389,8 +389,11 @@
             letter-spacing: 0.08em;
             margin-bottom: 6px;
         }
+        /* input[type=date] fica FORA desta regra de propósito — veja o
+           bloco dedicado logo abaixo. appearance:none nele esconde o
+           ícone nativo do calendário em navegadores Chromium. */
         input[type=text], input[type=password], input[type=email],
-        input[type=number], input[type=date], select, textarea {
+        input[type=number], select, textarea {
             width: 100%;
             padding: 9px 13px;
             background: var(--bg-3);
@@ -418,6 +421,38 @@
         select option { background: var(--bg-3); color: var(--text); }
         textarea { resize: vertical; min-height: 80px; }
         small { font-size: 11px; color: var(--text-3); display: block; margin-top: 4px; }
+
+        /* ── DATE INPUTS ─────────────────────────── */
+        /* Mesma base visual dos demais campos, mas SEM appearance:none,
+           para que o navegador mantenha o ícone nativo do calendário
+           (e o picker continue abrindo ao clicar nele). */
+        input[type=date] {
+            width: 100%;
+            padding: 9px 13px;
+            background: var(--bg-3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            font-size: 13px;
+            font-family: 'DM Sans', sans-serif;
+            color: var(--text);
+            transition: all 0.15s;
+            color-scheme: dark; /* pede ao navegador um picker com tema escuro */
+        }
+        input[type=date]:focus {
+            outline: none;
+            border-color: var(--gold-dim);
+            box-shadow: 0 0 0 3px var(--gold-soft);
+            background: var(--bg-2);
+        }
+        /* Garante contraste do ícone mesmo se o navegador ignorar color-scheme */
+        input[type=date]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+            opacity: 0.85;
+        }
+        input[type=date]::-webkit-calendar-picker-indicator:hover {
+            opacity: 1;
+        }
 
         /* ── SECTION DIVIDER ─────────────────────── */
         .section-label {

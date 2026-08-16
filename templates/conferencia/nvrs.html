@@ -5,8 +5,8 @@
 <div class="page-header">
     <h1>NVRs Monitorados</h1>
     <div style="display:flex; gap:8px;">
-        <a href="{{ url_for('conferencia.nvrs_importar') }}" class="btn btn-secondary btn-sm">↑ Importar CSV</a>
-        <a href="{{ url_for('conferencia.nvrs_novo') }}" class="btn btn-success">+ Adicionar NVR</a>
+        <a href="{{ url_for('nvr.nvr_importar') }}" class="btn btn-secondary btn-sm">↑ Importar CSV</a>
+        <a href="{{ url_for('nvr.nvr_novo') }}" class="btn btn-success">+ Adicionar NVR</a>
     </div>
 </div>
 
@@ -30,8 +30,8 @@
 <div class="card" style="text-align: center; padding: 3rem;">
     <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 1rem;">Nenhum NVR cadastrado ainda.</div>
     <div style="display:flex; gap:10px; justify-content:center;">
-        <a href="{{ url_for('conferencia.nvrs_importar') }}" class="btn btn-secondary">↑ Importar CSV em lote</a>
-        <a href="{{ url_for('conferencia.nvrs_novo') }}" class="btn btn-success">+ Cadastrar manualmente</a>
+        <a href="{{ url_for('nvr.nvr_importar') }}" class="btn btn-secondary">↑ Importar CSV em lote</a>
+        <a href="{{ url_for('nvr.nvr_novo') }}" class="btn btn-success">+ Cadastrar manualmente</a>
     </div>
 </div>
 {% else %}
@@ -95,9 +95,9 @@
         </div>
 
         <div style="display:flex; gap:6px;">
-            <a href="{{ url_for('conferencia.nvrs_editar', nvr_id=nvr.nvr_id) }}"
+            <a href="{{ url_for('nvr.nvr_editar', nvr_id=nvr.nvr_id) }}"
                class="btn btn-primary btn-sm">Editar</a>
-            <form method="POST" action="{{ url_for('conferencia.nvrs_toggle', nvr_id=nvr.nvr_id) }}"
+            <form method="POST" action="{{ url_for('nvr.nvr_toggle', nvr_id=nvr.nvr_id) }}"
                   style="margin:0;">
                 <button type="submit" class="btn btn-secondary btn-sm">
                     {{ 'Desativar' if nvr.ativo else 'Ativar' }}

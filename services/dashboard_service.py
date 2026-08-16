@@ -68,18 +68,24 @@ class DashboardService:
         }
 
     def _build_alerta_kpis(self) -> dict:
+        # NOTA: desde a unificação de status (StatusAlerta agora só tem
+        # pendente/tratado), AlertaRepository.resumo() retorna:
+        #   total, pendentes, tratados (confirmados + falso_positivo juntos),
+        #   falso_positivos (subconjunto de tratados)
+        # "Confirmados" (só o que foi tratado sem ser falso positivo) é
+        # derivado aqui: tratados - falso_positivos.
         try:
             resumo   = self._alerta_repo.resumo()
             top_nvrs = self._top_nvrs_formatado()
             labels, valores = self._grafico_ultimos_dias()
         except Exception:
-            resumo   = {"total": 0, "pendentes": 0, "tratados": 0, "deteccoes_falsas": 0}
+            resumo   = {"total": 0, "pendentes": 0, "tratados": 0, "falso_positivos": 0}
             top_nvrs = []
             labels, valores = [], []
 
         total       = resumo["total"]
-        confirmados = resumo["tratados"]
-        falsas      = resumo["deteccoes_falsas"]
+        falsas      = resumo.get("falso_positivos", 0)
+        confirmados = resumo["tratados"] - falsas
         precisao    = round(confirmados / total * 100) if total else 0
 
         return {

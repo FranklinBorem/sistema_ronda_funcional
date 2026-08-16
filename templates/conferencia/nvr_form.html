@@ -4,7 +4,7 @@
 {% block content %}
 <div class="page-header">
     <h1>{{ 'Editar NVR' if nvr else 'Novo NVR' }}</h1>
-    <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn btn-primary btn-sm">← Voltar</a>
+    <a href="{{ url_for('nvr.nvr_listar') }}" class="btn btn-primary btn-sm">← Voltar</a>
 </div>
 
 <style>
@@ -133,6 +133,24 @@
         </div>
 
         <div class="form-section">
+            <div class="form-section-title">Conexão HTTP / ISAPI</div>
+
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
+                <div class="form-group">
+                    <label>Porta</label>
+                    <input type="number" name="porta" value="{{ nvr.porta if nvr else 80 }}" min="1" max="65535" required>
+                </div>
+                <div class="form-group" style="display:flex; align-items:flex-end;">
+                    <label style="display:flex; align-items:center; gap:10px; cursor:pointer; text-transform:none; font-size:13px; font-weight:500; margin-bottom:0;">
+                        <input type="checkbox" name="use_https" value="1" {% if nvr and nvr.use_https %}checked{% endif %}
+                               style="width:16px; height:16px; accent-color:var(--gold);">
+                        <span>Usar HTTPS</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="form-section">
             <div class="form-section-title">Configuração de Canais</div>
 
             <div style="display:grid; grid-template-columns:1fr 1fr; gap:1rem;">
@@ -203,7 +221,7 @@
 <!-- BOTÕES -->
 <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem;">
     {% if nvr %}
-    <form method="POST" action="{{ url_for('conferencia.nvrs_excluir', nvr_id=nvr.nvr_id) }}"
+    <form method="POST" action="{{ url_for('nvr.nvr_excluir', nvr_id=nvr.nvr_id) }}"
           onsubmit="return confirm('Excluir {{ nvr.nome }}? Esta ação não pode ser desfeita.')">
         <button type="submit" class="btn btn-danger btn-sm">Excluir NVR</button>
     </form>
@@ -211,7 +229,7 @@
     <div></div>
     {% endif %}
     <div style="display:flex; gap:10px;">
-        <a href="{{ url_for('conferencia.nvrs_listar') }}" class="btn btn-secondary">Cancelar</a>
+        <a href="{{ url_for('nvr.nvr_listar') }}" class="btn btn-secondary">Cancelar</a>
         <button type="submit" class="btn btn-success">Salvar</button>
     </div>
 </div>

@@ -14,9 +14,15 @@ from extensions import db
 
 
 class StatusAlerta(str, enum.Enum):
-    PENDENTE       = "pendente"
-    TRATADO        = "tratado"
-    DETECCAO_FALSA = "deteccao_falsa"
+    PENDENTE = "pendente"
+    TRATADO  = "tratado"
+
+
+class MotivoTratamento(str, enum.Enum):
+    """Subcategoria de um alerta TRATADO — substitui o antigo status
+    'Detecção Falsa', que agora é um motivo dentro de 'Tratado'."""
+    CONFIRMADO     = "confirmado"
+    FALSO_POSITIVO = "falso_positivo"
 
 
 class Alerta(db.Model):
@@ -57,6 +63,11 @@ class Alerta(db.Model):
         default=StatusAlerta.PENDENTE.value,
         index=True,
     )
+    # Só preenchido quando status == TRATADO. Substitui o antigo status
+    # irmão 'deteccao_falsa' — agora é uma subcategoria de 'tratado'.
+    motivo_tratamento: db.Mapped[str | None] = db.mapped_column(
+        db.String(30), nullable=True, index=True
+    )
     tratativa: db.Mapped[str | None] = db.mapped_column(db.Text, nullable=True)
     responsavel: db.Mapped[str | None] = db.mapped_column(db.String(120), nullable=True)
     tratado_em: db.Mapped[datetime | None] = db.mapped_column(db.DateTime, nullable=True)
@@ -73,17 +84,28 @@ class Alerta(db.Model):
         novo_status: StatusAlerta,
         tratativa: str,
         responsavel: str,
+        motivo: MotivoTratamento | None = None,
     ) -> None:
-        """Registra tratativa e atualiza status."""
+        """Registra tratativa e atualiza status.
+
+        `motivo` só se aplica quando novo_status == TRATADO. Se não vier
+        explícito, assume CONFIRMADO (comportamento antigo de "Tratado"
+        sem subcategoria).
+        """
         self.status = novo_status.value
         self.tratativa = tratativa
         self.responsavel = responsavel
-        if novo_status in (StatusAlerta.TRATADO, StatusAlerta.DETECCAO_FALSA):
+        if novo_status == StatusAlerta.TRATADO:
+            self.motivo_tratamento = (motivo or MotivoTratamento.CONFIRMADO).value
             self.tratado_em = datetime.utcnow()
+        else:
+            self.motivo_tratamento = None
+            self.tratado_em = None
 
     def reabrir(self) -> None:
         """Volta o alerta para pendente, limpando a tratativa."""
         self.status = StatusAlerta.PENDENTE.value
+        self.motivo_tratamento = None
         self.tratativa = None
         self.responsavel = None
         self.tratado_em = None
@@ -92,25 +114,34 @@ class Alerta(db.Model):
     def is_pendente(self) -> bool:
         return self.status == StatusAlerta.PENDENTE.value
 
+    @property
+    def is_falso_positivo(self) -> bool:
+        return (
+            self.status == StatusAlerta.TRATADO.value
+            and self.motivo_tratamento == MotivoTratamento.FALSO_POSITIVO.value
+        )
+
     def __repr__(self) -> str:
         return (
             f"<Alerta id={self.id} nvr={self.nvr_id!r} "
-            f"local={self.local_preset!r} pessoas={self.pessoas} status={self.status!r}>"
+            f"local={self.local_preset!r} pessoas={self.pessoas} "
+            f"status={self.status!r} motivo={self.motivo_tratamento!r}>"
         )
 
     def to_dict(self) -> dict:
         return {
-            "id":           self.id,
-            "ronda_id":     self.ronda_id,
-            "nvr_id":       self.nvr_id,
-            "nvr_nome":     self.nvr_nome,
-            "ufv":          self.ufv or "—",
-            "local_preset": self.local_preset,
-            "pessoas":      self.pessoas,
-            "imagem_path":  self.imagem_path,
-            "detectado_em": self.detectado_em.isoformat() if self.detectado_em else None,
-            "status":       self.status,
-            "tratativa":    self.tratativa or "",
-            "responsavel":  self.responsavel or "",
-            "tratado_em":   self.tratado_em.isoformat() if self.tratado_em else None,
+            "id":                self.id,
+            "ronda_id":          self.ronda_id,
+            "nvr_id":            self.nvr_id,
+            "nvr_nome":          self.nvr_nome,
+            "ufv":               self.ufv or "—",
+            "local_preset":      self.local_preset,
+            "pessoas":           self.pessoas,
+            "imagem_path":       self.imagem_path,
+            "detectado_em":      self.detectado_em.isoformat() if self.detectado_em else None,
+            "status":            self.status,
+            "motivo_tratamento": self.motivo_tratamento,
+            "tratativa":         self.tratativa or "",
+            "responsavel":       self.responsavel or "",
+            "tratado_em":        self.tratado_em.isoformat() if self.tratado_em else None,
         }

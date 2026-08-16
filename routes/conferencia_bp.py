@@ -7,35 +7,23 @@ Rotas de status (ISAPI polling):
   GET  /conferencia/api/status/<nvr_id>  → polling de um NVR específico
   GET  /conferencia/api/historico        → histórico da tabela nvr_status_log
   GET  /conferencia/api/eventos          → eventos de monitoramento
+  GET  /conferencia/relatorio             → página de geração de relatório
+  GET  /conferencia/relatorio/gerar       → gera e baixa relatório (pdf/xlsx)
 
-Rotas de CRUD (tabela nvr_monitorado):
-  GET  /conferencia/nvrs                  → lista NVRs monitorados
-  GET  /conferencia/nvrs/novo             → formulário cadastro
-  POST /conferencia/nvrs/novo             → salva novo NVR
-  GET  /conferencia/nvrs/<nvr_id>/editar  → formulário edição
-  POST /conferencia/nvrs/<nvr_id>/editar  → salva edição
-  POST /conferencia/nvrs/<nvr_id>/toggle  → ativa/desativa
-  POST /conferencia/nvrs/<nvr_id>/excluir → exclui
-
-Rotas de importação em lote:
-  GET  /conferencia/nvrs/importar         → página de upload CSV
-  POST /conferencia/nvrs/importar         → processa CSV e cria NVRs
-  GET  /conferencia/nvrs/importar/modelo  → baixa CSV modelo
+O cadastro de NVRs (CRUD + importação CSV) vive em routes/nvr.py — este
+blueprint só lê da tabela `nvrs` via models.nvr.Nvr, nunca escreve nela.
 """
 
-import csv
-import io
 import logging
 from datetime import datetime
 
 from flask import (
-    Blueprint, Response, jsonify, render_template,
-    request, current_app, redirect, url_for, flash, send_file,
+    Blueprint, jsonify, render_template,
+    request, current_app, send_file,
 )
 
 from core.auth import login_required
-from extensions import db
-from models.nvr_monitorado import NvrMonitorado
+from models.nvr import Nvr
 from services.isapi_poller import (
     ConferenceManager,
     NvrConfig,
@@ -58,14 +46,14 @@ conferencia_bp = Blueprint(
 # ──────────────────────────────────────────────────────────────────────────────
 
 def _build_manager(nvr_ids: list[str] | None = None) -> ConferenceManager:
-    """Constrói ConferenceManager a partir da tabela nvr_monitorado."""
-    nvrs_db = NvrMonitorado.query.filter_by(ativo=True).all()
+    """Constrói ConferenceManager a partir da tabela nvrs."""
+    nvrs_db = Nvr.query.filter_by(ativo=True).all()
 
     if nvr_ids:
         nvrs_db = [n for n in nvrs_db if n.nvr_id in nvr_ids]
 
     if not nvrs_db:
-        logger.warning("_build_manager: nenhum NVR ativo em nvr_monitorado")
+        logger.warning("_build_manager: nenhum NVR ativo em nvrs")
 
     nvr_configs = [
         NvrConfig(
@@ -181,7 +169,7 @@ def api_status():
 @login_required
 def api_status_nvr(nvr_id: str):
     try:
-        nvr_db = NvrMonitorado.query.filter_by(nvr_id=nvr_id, ativo=True).first()
+        nvr_db = Nvr.query.filter_by(nvr_id=nvr_id, ativo=True).first()
         if nvr_db is None:
             return jsonify({"error": f"NVR '{nvr_id}' não encontrado ou inativo"}), 404
 
@@ -239,215 +227,6 @@ def api_eventos():
 
     eventos = query.order_by(MonitorEvent.aberto_em.desc()).limit(200).all()
     return jsonify({"eventos": [e.to_dict() for e in eventos]})
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# CRUD de NVRs monitorados
-# ──────────────────────────────────────────────────────────────────────────────
-
-@conferencia_bp.route("/nvrs")
-@login_required
-def nvrs_listar():
-    nvrs = NvrMonitorado.query.order_by(NvrMonitorado.nome).all()
-    return render_template("conferencia/nvrs.html", nvrs=nvrs)
-
-
-@conferencia_bp.route("/nvrs/novo", methods=["GET", "POST"])
-@login_required
-def nvrs_novo():
-    if request.method == "POST":
-        nvr = NvrMonitorado(
-            nvr_id   = request.form["nvr_id"].strip(),
-            nome     = request.form["nome"].strip(),
-            site     = request.form.get("site", "").strip(),
-            ip       = request.form["ip"].strip(),
-            porta    = int(request.form.get("porta", 80)),
-            use_https= "use_https" in request.form,
-            usuario  = request.form.get("usuario", "admin").strip(),
-            senha    = request.form["senha"],
-            ativo    = "ativo" in request.form,
-        )
-        db.session.add(nvr)
-        db.session.commit()
-        flash(f'NVR "{nvr.nome}" cadastrado com sucesso.', "success")
-        return redirect(url_for("conferencia.nvrs_listar"))
-
-    return render_template("conferencia/nvr_form.html", nvr=None)
-
-
-@conferencia_bp.route("/nvrs/<nvr_id>/editar", methods=["GET", "POST"])
-@login_required
-def nvrs_editar(nvr_id: str):
-    nvr = NvrMonitorado.query.filter_by(nvr_id=nvr_id).first_or_404()
-
-    if request.method == "POST":
-        nvr.nome      = request.form["nome"].strip()
-        nvr.site      = request.form.get("site", "").strip()
-        nvr.ip        = request.form["ip"].strip()
-        nvr.porta     = int(request.form.get("porta", 80))
-        nvr.use_https = "use_https" in request.form
-        nvr.usuario   = request.form.get("usuario", "admin").strip()
-        nvr.ativo     = "ativo" in request.form
-        senha = request.form.get("senha", "").strip()
-        if senha:
-            nvr.senha = senha
-        db.session.commit()
-        flash(f'NVR "{nvr.nome}" atualizado.', "success")
-        return redirect(url_for("conferencia.nvrs_listar"))
-
-    return render_template("conferencia/nvr_form.html", nvr=nvr)
-
-
-@conferencia_bp.route("/nvrs/<nvr_id>/toggle", methods=["POST"])
-@login_required
-def nvrs_toggle(nvr_id: str):
-    nvr = NvrMonitorado.query.filter_by(nvr_id=nvr_id).first_or_404()
-    nvr.ativo = not nvr.ativo
-    db.session.commit()
-    estado = "ativado" if nvr.ativo else "desativado"
-    flash(f'NVR "{nvr.nome}" {estado}.', "success")
-    return redirect(url_for("conferencia.nvrs_listar"))
-
-
-@conferencia_bp.route("/nvrs/<nvr_id>/excluir", methods=["POST"])
-@login_required
-def nvrs_excluir(nvr_id: str):
-    nvr = NvrMonitorado.query.filter_by(nvr_id=nvr_id).first_or_404()
-    nome = nvr.nome
-    db.session.delete(nvr)
-    db.session.commit()
-    flash(f'NVR "{nome}" excluído.', "success")
-    return redirect(url_for("conferencia.nvrs_listar"))
-
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Importação em lote via CSV
-# ──────────────────────────────────────────────────────────────────────────────
-
-_TRUTHY = {"1", "true", "sim", "yes", "s", "y"}
-
-
-def _parse_bool_csv(val: str) -> bool:
-    return str(val).strip().lower() in _TRUTHY
-
-
-def _parse_csv(texto: str) -> tuple[list[dict], list[str]]:
-    """
-    Lê CSV (separador ; ou ,) e retorna (linhas_válidas, erros).
-    Aceita cabeçalho com ou sem BOM UTF-8 (gerado pelo Excel).
-    Colunas esperadas:
-      nvr_id | nome | site | ip | porta | usuario | senha | use_https | ativo
-    """
-    texto = texto.lstrip("\ufeff")   # remove BOM do Excel
-    try:
-        dialect = csv.Sniffer().sniff(texto[:512], delimiters=";,")
-    except csv.Error:
-        dialect = csv.excel  # fallback: vírgula padrão
-
-    reader = csv.DictReader(io.StringIO(texto), dialect=dialect)
-
-    # Normaliza nomes de colunas (espaços, acentos, maiúsculas)
-    if reader.fieldnames:
-        reader.fieldnames = [f.strip().lower() for f in reader.fieldnames]
-
-    linhas, erros = [], []
-    for i, row in enumerate(reader, start=2):   # linha 1 = cabeçalho
-        row = {k.strip().lower(): (v or "").strip() for k, v in row.items()}
-
-        nvr_id = row.get("nvr_id", "").replace(" ", "_")
-        if not nvr_id:
-            erros.append(f"Linha {i}: nvr_id vazio — ignorada.")
-            continue
-
-        ip = row.get("ip", "")
-        if not ip:
-            erros.append(f"Linha {i} ({nvr_id}): ip vazio — ignorada.")
-            continue
-
-        try:
-            porta = int(row.get("porta") or 80)
-        except ValueError:
-            erros.append(f"Linha {i} ({nvr_id}): porta inválida — usando 80.")
-            porta = 80
-
-        linhas.append({
-            "nvr_id":    nvr_id,
-            "nome":      row.get("nome") or nvr_id,
-            "site":      row.get("site", ""),
-            "ip":        ip,
-            "porta":     porta,
-            "usuario":   row.get("usuario") or "admin",
-            "senha":     row.get("senha", ""),
-            "use_https": _parse_bool_csv(row.get("use_https", "0")),
-            "ativo":     _parse_bool_csv(row.get("ativo", "1")),
-        })
-
-    return linhas, erros
-
-
-@conferencia_bp.route("/nvrs/importar", methods=["GET", "POST"])
-@login_required
-def nvrs_importar():
-    if request.method == "GET":
-        return render_template("conferencia/nvrs_importar.html")
-
-    # POST — processa arquivo enviado
-    arquivo = request.files.get("arquivo")
-    if not arquivo or not arquivo.filename:
-        flash("Nenhum arquivo enviado.", "warning")
-        return redirect(url_for("conferencia.nvrs_importar"))
-
-    # Tenta decodificar UTF-8 (com ou sem BOM) e cai em Latin-1 se falhar
-    try:
-        texto = arquivo.read().decode("utf-8-sig")
-    except UnicodeDecodeError:
-        try:
-            arquivo.seek(0)
-            texto = arquivo.read().decode("latin-1")
-        except Exception:
-            flash("Não foi possível decodificar o arquivo. Use UTF-8 ou Latin-1.", "danger")
-            return redirect(url_for("conferencia.nvrs_importar"))
-
-    linhas, erros = _parse_csv(texto)
-
-    criados, ignorados = [], []
-    for d in linhas:
-        existente = NvrMonitorado.query.filter_by(nvr_id=d["nvr_id"]).first()
-        if existente:
-            ignorados.append(d["nvr_id"])
-            continue
-        db.session.add(NvrMonitorado(**d))
-        criados.append(d["nvr_id"])
-
-    db.session.commit()
-
-    if criados:
-        flash(f"✅ {len(criados)} NVR(s) cadastrados: {', '.join(criados)}", "success")
-    if ignorados:
-        flash(f"⚠️ {len(ignorados)} já existiam e foram ignorados: {', '.join(ignorados)}", "warning")
-    for e in erros:
-        flash(e, "danger")
-    if not criados and not ignorados and not erros:
-        flash("Nenhuma linha válida encontrada no arquivo.", "warning")
-
-    return redirect(url_for("conferencia.nvrs_listar"))
-
-
-@conferencia_bp.route("/nvrs/importar/modelo")
-@login_required
-def nvrs_importar_modelo():
-    """Retorna um CSV modelo para o usuário baixar e preencher."""
-    linhas = [
-        "nvr_id;nome;site;ip;porta;usuario;senha;use_https;ativo",
-        "nvr_altair_01;UFV Altair - NVR 01;Altair SP;10.38.10.202;80;admin;senha123;0;1",
-        "nvr_altair_02;UFV Altair - NVR 02;Altair SP;10.38.10.203;80;admin;senha123;0;1",
-        "nvr_sp_dome_01;Usina SP - Dome 01;São Paulo SP;192.168.1.100;8080;admin;outrasenha;0;1",
-    ]
-    return Response(
-        "\n".join(linhas),
-        mimetype="text/csv",
-        headers={"Content-Disposition": "attachment; filename=modelo_nvrs.csv"},
-    )
 
 
 # ──────────────────────────────────────────────────────────────────────────────
