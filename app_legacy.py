@@ -1,10 +1,5 @@
 """
-app.py — Application Factory do Vigilante IA (schema novo).
-
-CORTE FINAL da religação (Fases A-E, ver commits anteriores). A
-versão anterior deste arquivo (schema antigo) foi preservada como
-app_legacy.py — histórico completo disponível via `git log
-app_legacy.py`, não apagado.
+app.py — Application Factory do Vigilante IA.
 
 Uso:
     # Produção (via PM2 / gunicorn):
@@ -29,9 +24,25 @@ from flask import Flask
 
 load_dotenv()
 
+# ──────────────────────────────────────────────────────────────────────────────
+# Configuração de logging
+# Chamada antes de create_app() para que todos os módulos que fazem
+# logging.getLogger(__name__) no import já herdem o handler correto.
+# ──────────────────────────────────────────────────────────────────────────────
 
 def _configure_logging() -> None:
-    """Idêntico ao app_legacy.py — não é uma preocupação de schema."""
+    """
+    Configura dois handlers:
+      1. Console (StreamHandler)  — nível INFO, sempre ativo
+      2. Arquivo rotativo         — nível DEBUG, rotaciona a cada 5 MB, mantém 5 backups
+
+    O arquivo fica em logs/vigilante.log (criado automaticamente).
+    O nível do logger raiz respeita FLASK_ENV:
+      development → DEBUG (arquivo e console em DEBUG)
+      production  → INFO  (arquivo em DEBUG, console em INFO)
+
+    Módulos de terceiros ruidosos (requests, urllib3) ficam em WARNING.
+    """
     log_dir = Path("logs")
     log_dir.mkdir(exist_ok=True)
 
@@ -40,25 +51,29 @@ def _configure_logging() -> None:
         datefmt="%Y-%m-%d %H:%M:%S",
     )
 
+    # ── Handler 1: console ────────────────────────────────────────────────
     console = logging.StreamHandler()
     console.setFormatter(fmt)
     console.setLevel(logging.INFO)
 
+    # ── Handler 2: arquivo rotativo ───────────────────────────────────────
     file_handler = logging.handlers.RotatingFileHandler(
         log_dir / "vigilante.log",
-        maxBytes=5 * 1024 * 1024,
+        maxBytes=5 * 1024 * 1024,   # 5 MB por arquivo
         backupCount=5,
         encoding="utf-8",
     )
     file_handler.setFormatter(fmt)
     file_handler.setLevel(logging.DEBUG)
 
+    # ── Logger raiz ───────────────────────────────────────────────────────
     root = logging.getLogger()
     env = os.getenv("FLASK_ENV", "production")
     root.setLevel(logging.DEBUG if env == "development" else logging.INFO)
     root.addHandler(console)
     root.addHandler(file_handler)
 
+    # ── Silencia libs ruidosas ────────────────────────────────────────────
     for noisy in ("urllib3", "requests", "werkzeug"):
         logging.getLogger(noisy).setLevel(logging.WARNING)
 
@@ -69,6 +84,10 @@ def _configure_logging() -> None:
 
 _configure_logging()
 
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Application Factory
+# ──────────────────────────────────────────────────────────────────────────────
 
 def create_app(config_override: dict | None = None) -> Flask:
     app = Flask(__name__)
@@ -82,27 +101,20 @@ def create_app(config_override: dict | None = None) -> Flask:
     _register_extensions(app)
     _register_blueprints(app)
     _register_hooks(app)
-    _register_error_handlers(app)
 
     return app
 
 
 def _register_extensions(app: Flask) -> None:
-    """
-    ÚNICA diferença estrutural frente ao app_legacy.py: importa
-    models_v2 (não models) e inicializa repositories_v2.db_session
-    (não repositories.db_session) — o resto do bootstrap Flask
-    (SQLAlchemy, Migrate) é idêntico.
-    """
     from extensions import db, migrate
 
     db.init_app(app)
     migrate.init_app(app, db)
 
     with app.app_context():
-        import models_v2  # noqa: F401
+        import models  # noqa: F401
 
-        from repositories_v2.db_session import init_engine
+        from repositories.db_session import init_engine
         init_engine(db.engine)
 
 
@@ -126,62 +138,21 @@ def _register_hooks(app: Flask) -> None:
         db.session.remove()
 
 
-def _register_error_handlers(app: Flask) -> None:
-    """
-    Handlers globais mínimos — ausentes em toda a versão antiga do
-    projeto (confirmado na análise técnica original). Não faziam
-    parte do escopo da religação de schema, mas o corte final é um
-    bom momento para fechar essa lacuna de observabilidade sem custo
-    adicional de risco.
-    """
-    from flask import jsonify, render_template, request
-
-    @app.errorhandler(404)
-    def _nao_encontrado(e):
-        if request.path.startswith("/api/"):
-            return jsonify({"erro": "não encontrado"}), 404
-        return "Página não encontrada", 404
-
-    @app.errorhandler(500)
-    def _erro_interno(e):
-        logging.getLogger(__name__).exception("Erro interno não tratado")
-        if request.path.startswith("/api/"):
-            return jsonify({"erro": "erro interno"}), 500
-        return "Erro interno do servidor", 500
-
-
 def _seed_admin(app: Flask) -> None:
-    """
-    Cria uma Empresa + Usuario admin padrão SE o banco estiver
-    completamente vazio (nenhuma Empresa cadastrada) — útil para o
-    primeiro boot após reconstrução do banco. Só roda via
-    `python app.py` (if __name__ == "__main__"), nunca em produção
-    via gunicorn.
-    """
     from extensions import db
-    from models_v2.empresa import Empresa
-    from models_v2.unidade import Unidade
-    from repositories_v2.usuario_repository import UsuarioRepository
+    from models.monitor import Monitor
 
     with app.app_context():
-        if db.session.query(Empresa).first() is not None:
-            return
-
-        empresa = Empresa(nome="Grupo Ronda", slug="grupo-ronda")
-        db.session.add(empresa)
-        db.session.flush()
-        unidade = Unidade(empresa_id=empresa.id, nome="Unidade Padrão")
-        db.session.add(unidade)
-        db.session.flush()
-
-        UsuarioRepository().criar(
-            empresa_id=empresa.id, nome="Administrador",
-            usuario_login="admin", senha_plain="admin123", papel="admin_empresa",
-        )
-        db.session.commit()
-        logging.getLogger(__name__).info(
-            "Empresa/Unidade/Usuário padrão criados: admin / admin123"
-        )
+        if not Monitor.query.filter_by(usuario="admin").first():
+            admin = Monitor(
+                nome="Administrador",
+                usuario="admin",
+                turno="Administrativo",
+            )
+            admin.set_senha("admin123")
+            db.session.add(admin)
+            db.session.commit()
+            logging.getLogger(__name__).info("Usuário padrão criado: admin / admin123")
 
 
 def _criar_tabelas(app: Flask) -> None:
@@ -196,8 +167,10 @@ def _criar_tabelas(app: Flask) -> None:
 app = create_app()
 
 # ── Loop de coleta de status (Conferência de Câmeras) ────────────────────────
-from services_v2.conferencia_loop import iniciar_loop_v2
-iniciar_loop_v2()
+# Roda em thread daemon: salva NvrStatusLog, CameraStatusLog e MonitorEvent
+# a cada 5 minutos automaticamente.
+from services.conferencia_loop import iniciar_loop
+iniciar_loop(app)
 # ─────────────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":

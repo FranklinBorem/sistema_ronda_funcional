@@ -14,7 +14,7 @@ from core.auth import login_required
 from services_v2.ronda_service import RondaService
 from repositories_v2.ronda_repository import RondaRepository
 
-rondas_v2_bp = Blueprint("rondas_v2", __name__)
+rondas_v2_bp = Blueprint("rondas", __name__)
 
 _service = RondaService()
 _repo = RondaRepository()
@@ -52,3 +52,22 @@ def api_status_ronda(ronda_id: int):
     if not ronda:
         return jsonify({"erro": "ronda não encontrada"}), 404
     return jsonify(ronda.to_dict())
+
+
+@rondas_v2_bp.route("/historico")
+@login_required
+def historico():
+    from flask import render_template
+    unidade_id = _unidade_padrao_id()
+    rondas = _repo.listar_por_unidade(unidade_id) if unidade_id else []
+    return render_template("rondas_v2/historico.html", rondas=rondas)
+
+
+@rondas_v2_bp.route("/monitores")
+@login_required
+def monitores():
+    from flask import render_template
+    from repositories_v2.usuario_repository import UsuarioRepository
+    empresa_id = session.get("empresa_id")
+    usuarios = UsuarioRepository().listar_por_empresa(empresa_id) if empresa_id else []
+    return render_template("rondas_v2/monitores.html", usuarios=usuarios)

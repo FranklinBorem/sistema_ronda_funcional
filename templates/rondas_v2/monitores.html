@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Usuários — Grupo Ronda{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <h1 class="h3 mb-4">Usuários</h1>
+  {% if not usuarios %}
+    <div class="alert alert-info">Nenhum usuário cadastrado nesta empresa.</div>
+  {% endif %}
+  <table class="table table-hover">
+    <thead><tr><th>Nome</th><th>Login</th><th>Papel</th><th>Status</th></tr></thead>
+    <tbody>
+      {% for u in usuarios %}
+        <tr>
+          <td>{{ u.nome }}</td><td>{{ u.usuario_login }}</td>
+          <td>{{ u.papel }}</td><td>{{ u.status }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

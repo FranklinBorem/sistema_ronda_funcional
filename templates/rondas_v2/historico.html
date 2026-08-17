@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Histórico de Rondas — Grupo Ronda{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <h1 class="h3 mb-4">Histórico de Rondas</h1>
+  {% if not rondas %}
+    <div class="alert alert-info">Nenhuma ronda registrada ainda.</div>
+  {% endif %}
+  <table class="table table-hover">
+    <thead><tr><th>#</th><th>Status</th><th>Início</th><th>Fim</th></tr></thead>
+    <tbody>
+      {% for r in rondas %}
+        <tr>
+          <td>{{ r.id }}</td>
+          <td><span class="badge bg-secondary">{{ r.status }}</span></td>
+          <td>{{ r.iniciado_em.strftime("%d/%m %H:%M") if r.iniciado_em else "—" }}</td>
+          <td>{{ r.finalizado_em.strftime("%d/%m %H:%M") if r.finalizado_em else "—" }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endblock %}

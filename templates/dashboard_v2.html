@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Grupo Ronda{% endblock %}
+{% block content %}
+<div class="container-fluid py-4">
+  <h1 class="h3 mb-4">Dashboard</h1>
+  <div class="row g-3">
+    <div class="col-md-3">
+      <div class="card text-center p-3">
+        <div class="h2 mb-0">{{ rondas_hoje }}</div>
+        <div class="text-muted">Rondas concluídas</div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card text-center p-3">
+        <div class="h2 mb-0">{{ cameras_online }}/{{ cameras_total }}</div>
+        <div class="text-muted">Câmeras online</div>
+      </div>
+    </div>
+    {% for status, total in resumo_ocorrencias.items() %}
+    <div class="col-md-3">
+      <div class="card text-center p-3">
+        <div class="h2 mb-0">{{ total }}</div>
+        <div class="text-muted">Ocorrências — {{ status }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  <div class="mt-4">
+    <a href="{{ url_for('equipamentos.listar') }}" class="btn btn-outline-primary">Equipamentos</a>
+    <a href="{{ url_for('ocorrencias.listar') }}" class="btn btn-outline-primary">Ocorrências</a>
+  </div>
+</div>
+{% endblock %}

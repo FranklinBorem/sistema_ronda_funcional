@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% block title %}Conferência de Câmeras — Grupo Ronda{% endblock %}
+{% block content %}
+<div class="container py-4">
+  <h1 class="h3 mb-4">Conferência de Câmeras</h1>
+  <div class="card text-center p-4" style="max-width: 300px;">
+    <div class="display-4">{{ online }}/{{ total }}</div>
+    <div class="text-muted">câmeras online (última leitura)</div>
+  </div>
+  <p class="text-muted mt-3">
+    Atualizado automaticamente a cada 5 minutos pelo loop de conferência.
+  </p>
+</div>
+{% endblock %}
