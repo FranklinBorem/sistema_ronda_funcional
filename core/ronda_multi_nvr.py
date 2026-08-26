@@ -89,6 +89,7 @@ def _nvr_para_config(nvr) -> NVRConfig:
         ativo=nvr.ativo,
     )
 from core.yolo_config import caminho_modelo_yolo
+from core.analisar_imagem import analisar_imagem
 
 load_dotenv()
 
@@ -96,16 +97,7 @@ load_dotenv()
 # CONFIGURAÇÕES YOLO
 # =========================================================
 
-MODELO_YOLO      = caminho_modelo_yolo()
-CONFIANCA_MINIMA = 0.30
-INPUT_SIZE       = 960
-TILES            = 3
-OVERLAP          = 0.20
-IOU              = 0.45
-AREA_MINIMA      = 900
-LARGURA_MINIMA   = 14
-ALTURA_MINIMA    = 32
-ASPECT_RATIO_MIN = 1.6
+MODELO_YOLO = caminho_modelo_yolo()
 
 _model_lock = threading.Lock()
 
@@ -478,160 +470,19 @@ def capturar_snapshot(
         log.error("Erro snapshot: %s", e)
         return None
 
-
-# =========================================================
-# ANÁLISE YOLO
-# =========================================================
-
-def remover_overlays(img):
-    h, w = img.shape[:2]
-    img[0 : int(h * 0.20), :] = 0
-    img[int(h * 0.65) :, int(w * 0.50) :] = 0
-    return img
-
-
-def filtrar_deteccoes_tile(
-    deteccoes_brutas: list,
-    largura_img: int,
-    altura_img: int,
-) -> list:
-    validas = []
-    for x1, y1, x2, y2, conf, origem in deteccoes_brutas:
-        cx = (x1 + x2) / 2
-        cy = (y1 + y2) / 2
-
-        if cy < altura_img * 0.20:
-            continue
-        if cx > largura_img * 0.50 and cy > altura_img * 0.65:
-            continue
-
-        larg = x2 - x1
-        alt  = y2 - y1
-        area = larg * alt
-        ar   = alt / max(larg, 1)
-
-        if area < AREA_MINIMA or larg < LARGURA_MINIMA:
-            continue
-        if alt < ALTURA_MINIMA or ar < ASPECT_RATIO_MIN:
-            continue
-
-        validas.append({
-            "bbox":         (x1, y1, x2, y2),
-            "confianca":    conf,
-            "area":         area,
-            "largura":      larg,
-            "altura":       alt,
-            "aspect_ratio": ar,
-            "origem":       origem,
-        })
-    return validas
-
-
-def analisar_imagem(
-    caminho_imagem: Path,
-    log: logging.Logger,
-) -> tuple[int, Path | None]:
-    model = get_model()
-    img_original = cv2.imread(str(caminho_imagem))
-    if img_original is None:
-        log.error("Não foi possível ler imagem: %s", caminho_imagem)
-        return 0, None
-
-    img_analise = remover_overlays(img_original.copy())
-    altura, largura = img_analise.shape[:2]
-    deteccoes_brutas = []
-
-    # Imagem inteira
-    log.info("Inferência — imagem inteira (device=%s)...", DEVICE)
-    res = model(
-        img_analise,
-        classes=[0],
-        conf=CONFIANCA_MINIMA,
-        imgsz=INPUT_SIZE,
-        iou=IOU,
-        device=DEVICE,
-        half=USAR_FP16,
-        verbose=False,
-    )
-    for r in res:
-        for box in r.boxes:
-            conf = float(box.conf[0])
-            x1, y1, x2, y2 = map(int, box.xyxy[0])
-            deteccoes_brutas.append((x1, y1, x2, y2, conf, "inteira"))
-
-    # Tiling
-    log.info("Inferência — tiling %dx%d (overlap=%.0f%%)...", TILES, TILES, OVERLAP * 100)
-    tile_h = int(altura / TILES * (1 + OVERLAP))
-    tile_w = int(largura / TILES * (1 + OVERLAP))
-
-    for row in range(TILES):
-        for col in range(TILES):
-            y1_tile = int(row * altura / TILES)
-            x1_tile = int(col * largura / TILES)
-            y2_tile = min(y1_tile + tile_h, altura)
-            x2_tile = min(x1_tile + tile_w, largura)
-
-            tile = img_analise[y1_tile:y2_tile, x1_tile:x2_tile]
-            tile_resized = cv2.resize(tile, (INPUT_SIZE, INPUT_SIZE))
-
-            res_tile = model(
-                tile_resized,
-                classes=[0],
-                conf=CONFIANCA_MINIMA,
-                imgsz=INPUT_SIZE,
-                iou=IOU,
-                device=DEVICE,
-                half=USAR_FP16,
-                verbose=False,
-            )
-            for r in res_tile:
-                for box in r.boxes:
-                    conf = float(box.conf[0])
-                    bx1 = int(box.xyxy[0][0] * (tile.shape[1] / INPUT_SIZE)) + x1_tile
-                    by1 = int(box.xyxy[0][1] * (tile.shape[0] / INPUT_SIZE)) + y1_tile
-                    bx2 = int(box.xyxy[0][2] * (tile.shape[1] / INPUT_SIZE)) + x1_tile
-                    by2 = int(box.xyxy[0][3] * (tile.shape[0] / INPUT_SIZE)) + y1_tile
-                    deteccoes_brutas.append(
-                        (bx1, by1, bx2, by2, conf, f"tile({row},{col})")
-                    )
-
-    det = filtrar_deteccoes_tile(deteccoes_brutas, largura, altura)
-
-    if not det:
-        log.info("0 pessoa(s) detectada(s).")
-        return 0, None
-
-    img_anotada = img_original.copy()
-    for d in det:
-        x1, y1, x2, y2 = d["bbox"]
-        cv2.rectangle(img_anotada, (x1, y1), (x2, y2), (0, 0, 255), 3)
-        cv2.putText(
-            img_anotada,
-            f"Pessoa {d['confianca']:.2f}",
-            (x1, max(y1 - 10, 10)),
-            cv2.FONT_HERSHEY_SIMPLEX,
-            0.8,
-            (0, 0, 255),
-            2,
-        )
-        log.info(
-            "Pessoa detectada | Confiança: %.2f | Área: %d | "
-            "Largura: %d | Altura: %d | AR: %.2f | Origem: %s",
-            d["confianca"], d["area"], d["largura"],
-            d["altura"], d["aspect_ratio"], d["origem"],
-        )
-
-    caminho_anotado = caminho_imagem.with_name(
-        caminho_imagem.stem + "_deteccao" + caminho_imagem.suffix
-    )
-    cv2.imwrite(str(caminho_anotado), img_anotada)
-    log.info("%d pessoa(s) detectada(s). Imagem anotada: %s", len(det), caminho_anotado.name)
-    return len(det), caminho_anotado
-
-
 # =========================================================
 # RONDA DE UM ÚNICO NVR (roda em thread própria)
 # =========================================================
+#
+# NOTA: as funções remover_overlays(), filtrar_deteccoes_tile() e
+# analisar_imagem() antigas foram REMOVIDAS daqui. Agora vêm de
+# core/analisar_imagem.py, importado no topo do arquivo:
+#
+#     from core.analisar_imagem import analisar_imagem
+#
+# Se essa linha de import não estiver no topo do seu ronda_multi_nvr.py,
+# adicione antes de colar este bloco — senão vai dar
+# NameError: name 'analisar_imagem' is not defined.
 
 def executar_ronda_nvr(
     cfg: NVRConfig,
@@ -648,6 +499,7 @@ def executar_ronda_nvr(
     log.info("=== INICIANDO RONDA | NVR: %s | IP: %s ===", cfg.nome, cfg.ip)
 
     sessao = criar_sessao(cfg)
+    model  = get_model()  # uma instância por thread/NVR, reaproveitada em todos os presets
 
     if not testar_autenticacao(sessao, cfg, log):
         log.error("Falha na autenticação. Abortando NVR.")
@@ -676,7 +528,7 @@ def executar_ronda_nvr(
         if imagem is None:
             continue
 
-        pessoas, imagem_anotada = analisar_imagem(imagem, log)
+        pessoas, imagem_anotada = analisar_imagem(imagem, model, DEVICE, log)
         invasoes += pessoas
 
         if pessoas > 0:
@@ -729,7 +581,6 @@ def executar_ronda_nvr(
         "invasoes":  invasoes,
         "duracao_s": duracao,
     }
-
 
 # =========================================================
 # RELATÓRIO HTML CONSOLIDADO

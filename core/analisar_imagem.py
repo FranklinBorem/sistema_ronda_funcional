@@ -118,6 +118,7 @@ def analisar_imagem(
     img_analise = remover_overlays(img_original.copy())
     altura, largura = img_analise.shape[:2]
     deteccoes_brutas: list[tuple] = []
+    half = device.startswith("cuda")
 
     # ── 1. Inferência na imagem inteira ──────────────────────────────────
     log.info("YOLO — imagem inteira (imgsz=%d, conf=%.2f)...",
@@ -126,6 +127,7 @@ def analisar_imagem(
     res = model(
         img_analise,
         device=device,
+        half=half,
         **YOLO_PARAMS,
     )
     for r in res:
@@ -158,7 +160,7 @@ def analisar_imagem(
 
                 # Parâmetros do tile: mesmos do YOLO_PARAMS exceto imgsz fixo
                 params_tile = {**YOLO_PARAMS, "imgsz": imgsz}
-                res_t = model(tile_r, device=device, **params_tile)
+                res_t = model(tile_r, device=device, half=half, **params_tile)
 
                 for r in res_t:
                     for box in r.boxes:
